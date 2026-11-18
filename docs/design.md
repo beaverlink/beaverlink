@@ -2,13 +2,13 @@
 
 ## What Exists at This Commit
 
-A FastAPI backend scaffold in `backend/` with one endpoint, `GET /health`, and one pytest test. A Vite + React + TypeScript frontend in `frontend/` with a front-end-only demo login (hardcoded accounts in `src/auth/demoUsers.ts`) and a role-based demo experience: a public landing page, and per-role dashboards (student, alumnus, organizer) that illustrate the planned recommendation flow — ranked matches with per-factor "why" breakdowns, event check-ins, and organizer matching-health views. All of it runs on fake in-memory fixtures in `src/data/` (people, events, attendees, computed matches); there is no backend integration, no real authentication, and no database yet. CI (`.github/workflows/ci.yml`) runs `ruff` and `pytest` for the backend and `tsc`, `eslint`, Vitest, and `vite build` for the frontend, on every pull request to `dev` and `main`; the frontend job activates now that `frontend/package-lock.json` exists.
+A FastAPI backend scaffold in `backend/` with one endpoint, `GET /health`, and one pytest test. A Vite + React + TypeScript frontend in `frontend/` with a front-end-only demo login (hardcoded accounts in `src/auth/demoUsers.ts`) and a role-based demo experience: a public landing page, and per-role dashboards (student, alumnus, alumni association event staff) that illustrate the planned recommendation flow — ranked matches with per-factor "why" breakdowns, event check-ins, and matching-health views for alumni association event staff. All of it runs on fake in-memory fixtures in `src/data/` (people, events, attendees, computed matches); there is no backend integration, no real authentication, and no database yet. CI (`.github/workflows/ci.yml`) runs `ruff` and `pytest` for the backend (with a pgvector Postgres service) and `tsc`, `eslint`, Vitest, and `vite build` for the frontend, on every pull request to `dev` and `main`.
 
 ## Context
 
 Zoom level: system context (BeaverLink as one box).
 
-Students and alumni use BeaverLink before and during OSU Alumni Association events. Later, profiles may also be filled from OSU Connections (Gravyty's Graduway API).
+Students, alumni, and alumni association event staff use BeaverLink before and during OSU Alumni Association events. Later, profiles may also be filled from OSU Connections (Gravyty's Graduway API).
 
 ```mermaid
 flowchart LR
@@ -51,11 +51,11 @@ None yet. Planned tables: users, profiles, events, surveys, matches. If embeddin
 
 ## Decisions Deferred on Purpose
 
-Each has a proposed RFC, either in `docs/rfcs/` or in an open pull request:
+Each has a proposed RFC in `docs/rfcs/`:
 
-- Database host and login library (Supabase Postgres with Better Auth, proposed).
-- Profile data source and sign-in method (hybrid with swappable sources, proposed).
-- Whether v1 matching uses stored embeddings (local model, separate table, off by default, proposed).
+- [Database host and login library (Supabase Postgres with Better Auth, proposed).](rfcs/2026-10-25-supabase-benjamin-s.md)
+- [Profile data source and sign-in method (hybrid with swappable sources, proposed).](rfcs/2026-10-25-profile-data-sign-in-andy-n.md)
+- [Whether v1 matching uses stored embeddings (local model, separate table, off by default, proposed).](rfcs/2026-10-26-embeddings-tyler-q.md)
 
 ## Open Technical Questions
 
