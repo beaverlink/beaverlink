@@ -1,75 +1,128 @@
-// DEMO ONLY: this provider fakes authentication against hardcoded accounts and
-// stores the session in localStorage. Swap the body of login/logout for a real
-// provider (Supabase Auth or OSU SSO) before any real use; the public API
-// (user, isLoading, login, logout) is intentionally provider-agnostic so only
-// this file needs to change.
 import { useCallback, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { User } from './types'
 import { AuthContext } from './useAuth'
-import { DEMO_PASSWORD, demoUsers } from './demoUsers'
+import { authClient } from './authClient'
 
-const STORAGE_KEY = 'beaverlink.demo.user'
-const FAKE_DELAY_MS = 500
-
-function readStoredUser(): User | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as User) : null
-  } catch {
-    return null
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
   }
+
+  return fallback
 }
 
-function writeStoredUser(user: User | null): void {
-  try {
-    if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
-    }
-  } catch {
-    // Ignore storage failures (private mode, quota); session just won't persist.
+function toUser(
+  sessionUser:
+    | {
+        id: string
+        name: string
+        email: string
+      }
+    | null
+    | undefined,
+): User | null {
+  if (!sessionUser) return null
+
+  return {
+    id: sessionUser.id,
+    name: sessionUser.name,
+    email: sessionUser.email,
+    role: null,
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Restore the session synchronously on first render so a refresh never
-  // flashes the login page. isLoading is still exposed for the async login.
-  const [user, setUser] = useState<User | null>(readStoredUser)
-  const [isLoading, setIsLoading] = useState(false)
+  const {
+    data: session,
+    isPending,
+    refetch,
+  } = authClient.useSession()
 
-  const login = useCallback(async (email: string, password: string) => {
-    setIsLoading(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const user = useMemo(
+    () => toUser(session?.user),
+    [session?.user],
+  )
+
+  const isLoading = isPending || isSubmitting
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      setIsSubmitting(true)
+
+      try {
+        const { error } = await authClient.signIn.email({
+          email: email.trim(),
+          password,
+        })
+
+        if (error) {
+          throw new Error(
+            getErrorMessage(error, 'Incorrect email or password.'),
+          )
+        }
+
+        await refetch()
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [refetch],
+  )
+
+  const signup = useCallback(
+    async (name: string, email: string, password: string) => {
+      setIsSubmitting(true)
+
+      try {
+        const { error } = await authClient.signUp.email({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+        })
+
+        if (error) {
+          throw new Error(
+            getErrorMessage(error, 'Unable to create account.'),
+          )
+        }
+
+        await refetch()
+      } finally {
+        setIsSubmitting(false)
+      }
+    },
+    [refetch],
+  )
+
+  const logout = useCallback(async () => {
+    setIsSubmitting(true)
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, FAKE_DELAY_MS))
-      const match = demoUsers.find(
-        (u) => u.email.toLowerCase() === email.trim().toLowerCase(),
-      )
-      if (!match || password !== DEMO_PASSWORD) {
-        throw new Error('Incorrect email or password.')
-      }
-      const nextUser: User = {
-        id: match.id,
-        name: match.name,
-        email: match.email,
-        role: match.role,
-      }
-      setUser(nextUser)
-      writeStoredUser(nextUser)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      const { error } = await authClient.signOut()
 
-  const logout = useCallback(() => {
-    setUser(null)
-    writeStoredUser(null)
-  }, [])
+      if (error) {
+        throw new Error(
+          getErrorMessage(error, 'Unable to sign out.'),
+        )
+      }
+
+      await refetch()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [refetch])
 
   const value = useMemo(
-    () => ({ user, isLoading, login, logout }),
-    [user, isLoading, login, logout],
+    () => ({ user, isLoading, login, signup, logout }),
+    [user, isLoading, login, signup, logout],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

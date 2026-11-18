@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { useAuth } from '../auth/useAuth'
-import { Skeleton } from '../components/shared'
+import { AppShell, Skeleton } from '../components/shared'
 
 // Each role's landing is loaded only when a user of that role signs in, so a
 // role never downloads (or can reach) another role's page.
@@ -26,6 +26,25 @@ export function HomePage() {
   const { user } = useAuth()
   // ProtectedRoute guarantees a user; guard for type-safety.
   if (!user) return null
+
+  if (!user.role) {
+    return (
+      <AppShell>
+        <div
+          className="mx-auto flex max-w-xl flex-col items-center py-16 text-center"
+          aria-live="polite"
+        >
+          <h1 className="text-2xl font-bold text-ink">
+            Complete your BeaverLink profile
+          </h1>
+          <p className="mt-3 text-stone-600">
+            You are signed in, but your student, alumnus, or organizer profile
+            is not available yet.
+          </p>
+        </div>
+      </AppShell>
+    )
+  }
 
   const Page =
     user.role === 'student'

@@ -32,6 +32,30 @@ uvicorn app.main:app --reload
 
 Then open http://127.0.0.1:8000/health. It should show `{"status":"ok"}`.
 
+## Frontend authentication
+
+Copy [frontend/.env.example](frontend/.env.example) to `frontend/.env.local` and keep the default local auth URL:
+
+```dotenv
+VITE_BETTER_AUTH_URL=http://localhost:3000
+```
+
+In separate terminals, start the auth service and frontend:
+
+```bash
+cd auth
+npm install
+npm run dev
+```
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. Use the auth service's real signup and login forms; do not use real personal data during development.
+
 ## Local database
 
 Needs Docker and Node.js. From the repo root:

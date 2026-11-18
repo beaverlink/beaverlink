@@ -5,31 +5,32 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Logo } from '../components/Logo'
 import { useAuth } from '../auth/useAuth'
-import { DEMO_PASSWORD, demoUsers } from '../auth/demoUsers'
-import type { Role } from '../auth/types'
 import osuCampus from '../assets/osu-campus.png'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// Avatar tint per role, reused for the demo-account rows.
-const roleAvatar: Record<Role, string> = {
-  student: 'bg-osu-tint text-osu-dark',
-  alumnus: 'bg-emerald-50 text-emerald-700',
-  admin: 'bg-indigo-50 text-indigo-700',
-}
-
 export function LoginPage() {
-  const { login, isLoading } = useAuth()
+  const { login, signup, isLoading } = useAuth()
   const navigate = useNavigate()
 
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [nameError, setNameError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [formError, setFormError] = useState('')
 
   function validate(): boolean {
     let ok = true
+    if (mode === 'signup' && !name.trim()) {
+      setNameError('Name is required.')
+      ok = false
+    } else {
+      setNameError('')
+    }
+
     if (!email.trim()) {
       setEmailError('Email is required.')
       ok = false
@@ -55,19 +56,15 @@ export function LoginPage() {
     if (!validate()) return
 
     try {
-      await login(email, password)
+      if (mode === 'signup') {
+        await signup(name, email, password)
+      } else {
+        await login(email, password)
+      }
       navigate('/home', { replace: true })
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Unable to sign in.')
     }
-  }
-
-  function fillDemoAccount(demoEmail: string) {
-    setEmail(demoEmail)
-    setPassword(DEMO_PASSWORD)
-    setEmailError('')
-    setPasswordError('')
-    setFormError('')
   }
 
   return (
@@ -109,14 +106,28 @@ export function LoginPage() {
 
           <header className="mt-8">
             <h1 className="text-2xl font-bold tracking-tight text-ink">
-              Sign in
+              {mode === 'signup' ? 'Create an account' : 'Sign in'}
             </h1>
             <p className="mt-1.5 text-sm text-stone-500">
-              Welcome back. Enter your credentials to continue.
+              {mode === 'signup'
+                ? 'Create your BeaverLink account to continue.'
+                : 'Welcome back. Enter your credentials to continue.'}
             </p>
           </header>
 
           <form onSubmit={handleSubmit} noValidate className="mt-7 flex flex-col gap-4">
+            {mode === 'signup' && (
+              <Input
+                label="Name"
+                type="text"
+                name="name"
+                placeholder="Your name"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                error={nameError}
+              />
+            )}
             <Input
               label="Email"
               type="email"
@@ -160,68 +171,31 @@ export function LoginPage() {
             )}
 
             <Button type="submit" disabled={isLoading} className="mt-1 w-full">
-              {isLoading ? 'Signing in…' : 'Sign in'}
+              {isLoading
+                ? mode === 'signup'
+                  ? 'Creating account…'
+                  : 'Signing in…'
+                : mode === 'signup'
+                  ? 'Create account'
+                  : 'Sign in'}
             </Button>
           </form>
 
-          <div className="mt-8">
-            <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-stone-200" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">
-                Demo accounts
-              </span>
-              <span className="h-px flex-1 bg-stone-200" />
-            </div>
-            <p className="mt-3 text-center text-xs text-stone-500">
-              Click an account to autofill — password{' '}
-              <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-stone-700">
-                {DEMO_PASSWORD}
-              </code>
-            </p>
-            <ul className="mt-3 flex flex-col gap-2">
-              {demoUsers.map((account) => (
-                <li key={account.id}>
-                  <button
-                    type="button"
-                    onClick={() => fillDemoAccount(account.email)}
-                    className="group flex w-full items-center gap-3 rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-left transition-[border-color,box-shadow] hover:border-osu/50 hover:shadow-sm"
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${roleAvatar[account.role]}`}
-                      aria-hidden="true"
-                    >
-                      {account.name.charAt(0)}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-ink">
-                        {account.email}
-                      </span>
-                      <span className="block text-xs text-stone-500">
-                        {account.label}
-                      </span>
-                    </span>
-                    <svg
-                      viewBox="0 0 20 20"
-                      className="h-4 w-4 shrink-0 text-stone-300 transition-colors group-hover:text-osu"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      aria-hidden="true"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M7 5l5 5-5 5"
-                      />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <p className="mt-8 text-center text-xs text-stone-400">
-            Demo build · no real authentication
+          <p className="mt-8 text-center text-sm text-stone-500">
+            {mode === 'signup' ? 'Already have an account?' : 'New to BeaverLink?'}{' '}
+            <button
+              type="button"
+              className="font-semibold text-osu underline-offset-2 hover:underline"
+              onClick={() => {
+                setMode(mode === 'signup' ? 'signin' : 'signup')
+                setNameError('')
+                setEmailError('')
+                setPasswordError('')
+                setFormError('')
+              }}
+            >
+              {mode === 'signup' ? 'Sign in' : 'Create account'}
+            </button>
           </p>
         </div>
       </section>

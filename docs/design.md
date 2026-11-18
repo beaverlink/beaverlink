@@ -2,7 +2,7 @@
 
 ## What Exists at This Commit
 
-A FastAPI backend scaffold in `backend/` with one endpoint, `GET /health`, and one pytest test. A Vite + React + TypeScript frontend in `frontend/` with a front-end-only demo login (hardcoded accounts in `src/auth/demoUsers.ts`) and a role-based demo experience: a public landing page, and per-role dashboards (student, alumnus, organizer) that illustrate the planned recommendation flow — ranked matches with per-factor "why" breakdowns, event check-ins, and organizer matching-health views. All of it runs on fake in-memory fixtures in `src/data/` (people, events, attendees, computed matches); there is no backend integration, no real authentication, and no database schema yet. `supabase/config.toml` configures local PostgreSQL 17 for development, and CI uses the same major version. CI (`.github/workflows/ci.yml`) runs `ruff` and `pytest` for the backend and `tsc`, `eslint`, Vitest, and `vite build` for the frontend, on every pull request to `dev` and `main`; the frontend job activates now that `frontend/package-lock.json` exists.
+A FastAPI backend scaffold in `backend/` with one endpoint, `GET /health`, and one pytest test. A Vite + React + TypeScript frontend in `frontend/` provides a real Better Auth login and signup flow backed by the separate Node.js auth service. The role-based demo dashboards remain role-based UI demonstrations with fake in-memory fixtures in `src/data/` (people, events, attendees, and computed matches). Authentication identity is separate from application profile types; authenticated users without a profile remain in an incomplete-profile state until a profile model provides an authoritative type. `supabase/config.toml` configures local PostgreSQL 17 for development, and CI uses the same major version. CI (`.github/workflows/ci.yml`) runs `ruff` and `pytest` for the backend and `tsc`, `eslint`, Vitest, and `vite build` for the frontend, on every pull request to `dev` and `main`.
 
 ## Context
 
@@ -28,7 +28,7 @@ flowchart LR
   U[Browser] --> FE[React frontend<br/>demo UI, mock data]
   FE --> API[FastAPI backend<br/>scaffold exists]
   API --> DB[(PostgreSQL + pgvector<br/>planned)]
-  FE -.sign-in.-> AUTH[Auth service<br/>undecided]
+  FE -.cookie sessions.-> AUTH[Better Auth Node service]
 ```
 
 ## Interfaces and Contracts

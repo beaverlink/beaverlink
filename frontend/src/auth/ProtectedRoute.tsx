@@ -8,7 +8,15 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth()
 
   if (isLoading) {
-    return null
+    return (
+      <div
+        className="flex min-h-screen items-center justify-center bg-paper text-sm text-stone-500"
+        role="status"
+        aria-live="polite"
+      >
+        Loading your session…
+      </div>
+    )
   }
 
   if (!user) {
