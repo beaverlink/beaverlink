@@ -155,6 +155,10 @@ describe('Better Auth integration', () => {
       screen.getByLabelText('Password'),
       'secure-password',
     )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      'secure-password',
+    )
     await userEvent.click(
       screen.getByRole('button', { name: 'Create account' }),
     )
@@ -166,6 +170,130 @@ describe('Better Auth integration', () => {
         password: 'secure-password',
       })
     })
+  })
+
+  it('rejects a signup password shorter than 12 characters', async () => {
+    renderApp()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Create account' }),
+    )
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Test Student')
+    await userEvent.type(screen.getByLabelText('Email'), realUser.email)
+    await userEvent.type(screen.getByLabelText('Password'), 'short')
+    await userEvent.type(screen.getByLabelText('Confirm password'), 'short')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Create account' }),
+    )
+
+    expect(
+      await screen.findByText('Password must be at least 12 characters.'),
+    ).toBeInTheDocument()
+    expect(authMocks.signUpEmail).not.toHaveBeenCalled()
+  })
+
+  it('rejects a signup password longer than 128 characters', async () => {
+    renderApp()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Create account' }),
+    )
+
+    const longPassword = 'a'.repeat(129)
+    await userEvent.type(screen.getByLabelText('Name'), 'Test Student')
+    await userEvent.type(screen.getByLabelText('Email'), realUser.email)
+    await userEvent.type(screen.getByLabelText('Password'), longPassword)
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      longPassword,
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Create account' }),
+    )
+
+    expect(
+      await screen.findByText('Password must be 128 characters or fewer.'),
+    ).toBeInTheDocument()
+    expect(authMocks.signUpEmail).not.toHaveBeenCalled()
+  })
+
+  it('rejects mismatched signup passwords', async () => {
+    renderApp()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Create account' }),
+    )
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Test Student')
+    await userEvent.type(screen.getByLabelText('Email'), realUser.email)
+    await userEvent.type(
+      screen.getByLabelText('Password'),
+      'matching-length',
+    )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      'different-length',
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Create account' }),
+    )
+
+    expect(
+      await screen.findByText('Passwords do not match.'),
+    ).toBeInTheDocument()
+    expect(authMocks.signUpEmail).not.toHaveBeenCalled()
+  })
+
+  it('provides show and hide password controls', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(
+      await screen.findByRole('button', { name: 'Create account' }),
+    )
+
+    const password = screen.getByLabelText('Password')
+    expect(password).toHaveAttribute('type', 'password')
+    await user.click(screen.getByRole('button', { name: 'Show password' }))
+    expect(password).toHaveAttribute('type', 'text')
+    await user.click(screen.getByRole('button', { name: 'Hide password' }))
+    expect(password).toHaveAttribute('type', 'password')
+  })
+
+  it('provides show and hide controls on login', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    const password = await screen.findByLabelText('Password')
+    expect(password).toHaveAttribute('type', 'password')
+    await user.click(screen.getByRole('button', { name: 'Show password' }))
+    expect(password).toHaveAttribute('type', 'text')
+  })
+
+  it('shows signup server errors', async () => {
+    authMocks.signUpEmail.mockResolvedValue({
+      data: null,
+      error: { message: 'Email already exists' },
+    })
+
+    renderApp()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Create account' }),
+    )
+    await userEvent.type(screen.getByLabelText('Name'), 'Test Student')
+    await userEvent.type(screen.getByLabelText('Email'), realUser.email)
+    await userEvent.type(
+      screen.getByLabelText('Password'),
+      'secure-password',
+    )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      'secure-password',
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Create account' }),
+    )
+
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent('Email already exists')
   })
 
   it('shows invalid credential errors', async () => {

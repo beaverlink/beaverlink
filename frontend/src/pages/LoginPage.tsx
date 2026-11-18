@@ -8,6 +8,30 @@ import { useAuth } from '../auth/useAuth'
 import osuCampus from '../assets/osu-campus.png'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const MIN_PASSWORD_LENGTH = 12
+const MAX_PASSWORD_LENGTH = 128
+
+function PasswordVisibilityButton({
+  visible,
+  onToggle,
+  fieldLabel,
+}: {
+  visible: boolean
+  onToggle: () => void
+  fieldLabel: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="rounded-lg px-2 py-1 text-xs font-semibold text-stone-500 hover:text-ink focus:outline-none focus:ring-2 focus:ring-osu/40"
+      aria-label={`${visible ? 'Hide' : 'Show'} ${fieldLabel}`}
+      aria-pressed={visible}
+    >
+      {visible ? 'Hide' : 'Show'}
+    </button>
+  )
+}
 
 export function LoginPage() {
   const { login, signup, isLoading } = useAuth()
@@ -17,9 +41,13 @@ export function LoginPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [nameError, setNameError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [confirmPasswordError, setConfirmPasswordError] = useState('')
   const [formError, setFormError] = useState('')
 
   function validate(): boolean {
@@ -44,8 +72,34 @@ export function LoginPage() {
     if (!password) {
       setPasswordError('Password is required.')
       ok = false
+    } else if (
+      mode === 'signup' &&
+      password.length < MIN_PASSWORD_LENGTH
+    ) {
+      setPasswordError('Password must be at least 12 characters.')
+      ok = false
+    } else if (
+      mode === 'signup' &&
+      password.length > MAX_PASSWORD_LENGTH
+    ) {
+      setPasswordError('Password must be 128 characters or fewer.')
+      ok = false
     } else {
       setPasswordError('')
+    }
+
+    if (mode === 'signup') {
+      if (!confirmPassword) {
+        setConfirmPasswordError('Confirm your password.')
+        ok = false
+      } else if (password !== confirmPassword) {
+        setConfirmPasswordError('Passwords do not match.')
+        ok = false
+      } else {
+        setConfirmPasswordError('')
+      }
+    } else {
+      setConfirmPasswordError('')
     }
     return ok
   }
@@ -140,14 +194,46 @@ export function LoginPage() {
             />
             <Input
               label="Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="password"
-              placeholder="••••••••"
-              autoComplete="current-password"
+              placeholder={
+                mode === 'signup' ? 'At least 12 characters' : '••••••••'
+              }
+              autoComplete={
+                mode === 'signup' ? 'new-password' : 'current-password'
+              }
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               error={passwordError}
+              trailing={
+                <PasswordVisibilityButton
+                  visible={showPassword}
+                  onToggle={() => setShowPassword((visible) => !visible)}
+                  fieldLabel="password"
+                />
+              }
             />
+            {mode === 'signup' && (
+              <Input
+                label="Confirm password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirm-password"
+                placeholder="Re-enter your password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                error={confirmPasswordError}
+                trailing={
+                  <PasswordVisibilityButton
+                    visible={showConfirmPassword}
+                    onToggle={() =>
+                      setShowConfirmPassword((visible) => !visible)
+                    }
+                    fieldLabel="confirm password"
+                  />
+                }
+              />
+            )}
 
             {formError && (
               <p
@@ -188,9 +274,14 @@ export function LoginPage() {
               className="font-semibold text-osu underline-offset-2 hover:underline"
               onClick={() => {
                 setMode(mode === 'signup' ? 'signin' : 'signup')
+                setPassword('')
+                setConfirmPassword('')
+                setShowPassword(false)
+                setShowConfirmPassword(false)
                 setNameError('')
                 setEmailError('')
                 setPasswordError('')
+                setConfirmPasswordError('')
                 setFormError('')
               }}
             >

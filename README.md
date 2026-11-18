@@ -56,6 +56,8 @@ npm run dev
 
 Open http://localhost:5173. Use the auth service's real signup and login forms; do not use real personal data during development.
 
+Passwords must contain 12 to 128 characters. BeaverLink validates this in the frontend and Better Auth service; it does not require uppercase letters, numbers, or symbols.
+
 ## Local database
 
 Needs Docker and Node.js. From the repo root:
