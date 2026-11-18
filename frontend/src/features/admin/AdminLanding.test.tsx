@@ -1,21 +1,9 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../auth/AuthProvider'
 import AdminLanding from './AdminLanding'
-
-beforeEach(() => {
-  localStorage.setItem(
-    'beaverlink.demo.user',
-    JSON.stringify({
-      id: 'u-organizer',
-      name: 'Olivia Chen',
-      email: 'organizer@oregonstate.edu',
-      role: 'admin',
-    }),
-  )
-})
 
 function setup() {
   return render(

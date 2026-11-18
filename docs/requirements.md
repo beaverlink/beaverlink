@@ -19,7 +19,7 @@ At OSU Alumni Association networking events, students and alumni do not know who
 | ID | Requirement | Priority | Why | Status | Acceptance criterion |
 | --- | --- | --- | --- | --- | --- |
 | FR-0 | The backend reports that it is up. | Must | Deploys and CI need a check that the server runs. | Done | CI test `backend/tests/test_health.py::test_health_returns_ok` |
-| FR-1 | A user can create an account and sign in. | Must | Profiles and matches belong to a person. | Planned | A new user signs up, signs out, and signs back in. Requests without a valid token get 401. Sign-in method is open (see RFCs). |
+| FR-1 | A user can create an account and sign in. | Must | Profiles and matches belong to a person. | In progress | A new user signs up, signs out, and signs back in. Browser sessions persist across refreshes. FastAPI authorization validation is not implemented yet. |
 | FR-2 | A user can create and edit their own profile (major or industry, job, goals). | Must | Matching has no input without profiles. | Planned | A user can read and edit only their own profile; editing another user's profile returns 403. |
 | FR-3 | A user can fill out an event survey for an event they attend. | Must | Matches are per event and depend on what each person wants from it. | Planned | Survey answers are saved per user per event and can be edited until the event starts. |
 | FR-4 | A user sees a ranked list of people to meet at an event. | Must | This is the core feature. | Planned | Given seed profiles, the list is ordered by match score and excludes the user themself. |
