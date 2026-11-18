@@ -10,6 +10,8 @@ const authMocks = vi.hoisted(() => ({
   signInEmail: vi.fn(),
   signUpEmail: vi.fn(),
   signOut: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  resetPassword: vi.fn(),
 }))
 
 vi.mock('./authClient', async () => {
@@ -62,6 +64,8 @@ vi.mock('./authClient', async () => {
       signIn: { email: authMocks.signInEmail },
       signUp: { email: authMocks.signUpEmail },
       signOut: authMocks.signOut,
+      requestPasswordReset: authMocks.requestPasswordReset,
+      resetPassword: authMocks.resetPassword,
     },
   }
 })
@@ -98,6 +102,8 @@ describe('Better Auth integration', () => {
     authMocks.signInEmail.mockReset()
     authMocks.signUpEmail.mockReset()
     authMocks.signOut.mockReset()
+    authMocks.requestPasswordReset.mockReset()
+    authMocks.resetPassword.mockReset()
     authMocks.getSession.mockResolvedValue({ data: null, error: null })
   })
 
@@ -378,5 +384,145 @@ describe('Better Auth integration', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Loading your session',
     )
+  })
+
+  it('requests a password reset with the generic success response', async () => {
+    authMocks.requestPasswordReset.mockResolvedValue({
+      data: { status: true },
+      error: null,
+    })
+    renderApp('/forgot-password')
+
+    await userEvent.type(
+      await screen.findByLabelText('Email'),
+      realUser.email,
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Send reset link' }),
+    )
+
+    expect(authMocks.requestPasswordReset).toHaveBeenCalled()
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'If this email is associated with an account',
+    )
+  })
+
+  it('rejects mismatched reset passwords', async () => {
+    renderApp('/reset-password?token=valid-test-token')
+
+    await userEvent.type(
+      await screen.findByLabelText('New password'),
+      'matching-length',
+    )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      'different-length',
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password' }),
+    )
+
+    expect(
+      await screen.findByText('Passwords do not match.'),
+    ).toBeInTheDocument()
+    expect(authMocks.resetPassword).not.toHaveBeenCalled()
+  })
+
+  it('rejects reset passwords shorter than 12 characters', async () => {
+    renderApp('/reset-password?token=valid-test-token')
+
+    await userEvent.type(
+      await screen.findByLabelText('New password'),
+      'short',
+    )
+    await userEvent.type(screen.getByLabelText('Confirm password'), 'short')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password' }),
+    )
+
+    expect(
+      await screen.findByText('Password must be at least 12 characters.'),
+    ).toBeInTheDocument()
+  })
+
+  it('rejects reset passwords longer than 128 characters', async () => {
+    renderApp('/reset-password?token=valid-test-token')
+    const longPassword = 'a'.repeat(129)
+
+    await userEvent.type(
+      await screen.findByLabelText('New password'),
+      longPassword,
+    )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      longPassword,
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password' }),
+    )
+
+    expect(
+      await screen.findByText('Password must be 128 characters or fewer.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows invalid and missing reset tokens as unusable', async () => {
+    renderApp('/reset-password')
+
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent('invalid or has expired')
+  })
+
+  it('resets a password and redirects to login', async () => {
+    authMocks.resetPassword.mockResolvedValue({
+      data: { status: true },
+      error: null,
+    })
+    renderApp('/reset-password?token=valid-test-token')
+
+    await userEvent.type(
+      await screen.findByLabelText('New password'),
+      'secure-password',
+    )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      'secure-password',
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password' }),
+    )
+
+    await waitFor(() => {
+      expect(authMocks.resetPassword).toHaveBeenCalledWith({
+        newPassword: 'secure-password',
+        token: 'valid-test-token',
+      })
+      expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    })
+  })
+
+  it('shows invalid or used reset tokens as unusable', async () => {
+    authMocks.resetPassword.mockResolvedValue({
+      data: null,
+      error: { message: 'INVALID_TOKEN' },
+    })
+    renderApp('/reset-password?token=used-test-token')
+
+    await userEvent.type(
+      await screen.findByLabelText('New password'),
+      'secure-password',
+    )
+    await userEvent.type(
+      screen.getByLabelText('Confirm password'),
+      'secure-password',
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Reset password' }),
+    )
+
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent('invalid, expired, or has already been used')
   })
 })

@@ -51,6 +51,9 @@ const server = createServer(async (req, res) => {
 
   if (pathname.startsWith('/api/auth/')) {
     try {
+      // Use the actual connection address, not a user-supplied header.
+      req.headers['x-client-ip'] = req.socket.remoteAddress ?? ''
+
       await authHandler(req, res)
     } catch (error) {
       console.error('Authentication request failed:', error)

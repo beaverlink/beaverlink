@@ -36,6 +36,8 @@ flowchart LR
 | Endpoint | Status | Contract |
 | --- | --- | --- |
 | `GET /health` | Built | Returns `200` with `{"status": "ok"}`. Tested by `backend/tests/test_health.py`. |
+| `POST /api/auth/request-password-reset` | Built | Better Auth endpoint returns the same success payload for known and unknown emails. `sendResetPassword` uses the configured SMTP adapter. |
+| `POST /api/auth/reset-password` | Built | Better Auth validates the one-use token and 12–128-character password, resets the credential, and revokes existing sessions. |
 
 Planned rule: all data goes through FastAPI; the frontend never queries the database directly.
 

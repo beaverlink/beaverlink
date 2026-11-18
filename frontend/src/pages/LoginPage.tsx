@@ -265,6 +265,15 @@ export function LoginPage() {
                   ? 'Create account'
                   : 'Sign in'}
             </Button>
+            {mode === 'signin' && (
+              <button
+                type="button"
+                className="text-right text-sm font-semibold text-osu underline-offset-2 hover:underline"
+                onClick={() => navigate('/forgot-password')}
+              >
+                Forgot password?
+              </button>
+            )}
           </form>
 
           <p className="mt-8 text-center text-sm text-stone-500">

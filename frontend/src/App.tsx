@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { HomePage } from './pages/HomePage'
 import { PublicLanding } from './pages/PublicLanding'
 import { ProtectedRoute } from './auth/ProtectedRoute'
@@ -18,6 +20,8 @@ function App() {
     <Routes>
       <Route path="/" element={<RootRoute />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/home"
         element={
