@@ -11,12 +11,15 @@ if (!allowedOrigin) {
   throw new Error('FRONTEND_URL is not configured')
 }
 
-const server = createServer(async (req, res) => {
+const trustedOrigin: string = allowedOrigin
+
+export function createAuthServer() {
+  return createServer(async (req, res) => {
   const pathname = new URL(req.url ?? '/', 'http://localhost').pathname
   const requestOrigin = req.headers.origin
 
-  if (requestOrigin === allowedOrigin) {
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  if (requestOrigin === trustedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', trustedOrigin)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
     res.setHeader('Vary', 'Origin')
   }
@@ -25,7 +28,7 @@ const server = createServer(async (req, res) => {
     req.method === 'OPTIONS' &&
     pathname.startsWith('/api/auth/')
   ) {
-    if (requestOrigin !== allowedOrigin) {
+    if (requestOrigin !== trustedOrigin) {
       res.writeHead(403)
       res.end()
       return
@@ -51,6 +54,11 @@ const server = createServer(async (req, res) => {
 
   if (pathname.startsWith('/api/auth/')) {
     try {
+      if (process.env.NODE_ENV !== 'test') {
+        // Use the actual connection address, not a user-supplied header.
+        req.headers['x-client-ip'] = req.socket.remoteAddress ?? ''
+      }
+
       await authHandler(req, res)
     } catch (error) {
       console.error('Authentication request failed:', error)
@@ -67,8 +75,12 @@ const server = createServer(async (req, res) => {
 
   res.writeHead(404)
   res.end('Not Found')
-})
+  })
+}
 
-server.listen(PORT, HOST, () => {
-  console.log(`Auth service listening on ${HOST}:${PORT}`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  const server = createAuthServer()
+  server.listen(PORT, HOST, () => {
+    console.log(`Auth service listening on ${HOST}:${PORT}`)
+  })
+}

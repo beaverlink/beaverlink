@@ -2,9 +2,11 @@ name: CI
 
 on:
   pull_request:
-    branches: [dev, main]
   push:
     branches: [dev, main]
+
+permissions:
+  contents: read
 
 jobs:
   backend:
@@ -65,5 +67,44 @@ jobs:
           npm ci
           npx tsc --noEmit
           npm run lint
-          npm test
+          npx vitest run
           npm run build
+
+  auth:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: auth
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: beaverlink_auth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d beaverlink_auth_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/beaverlink_auth_test
+      DATABASE_SSL_MODE: disable      
+      ALLOW_AUTH_TEST_DB_RESET: "true"
+      BETTER_AUTH_SECRET: ci-only-test-secret-with-at-least-32-characters
+      BETTER_AUTH_URL: http://127.0.0.1:3000
+      FRONTEND_URL: http://127.0.0.1:5173
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: auth/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test

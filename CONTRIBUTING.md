@@ -16,6 +16,26 @@ Run these in `backend/` before opening a PR. CI runs the same commands.
 - Lint: `ruff check .`
 - Format: `ruff format .` (CI runs `ruff format --check .`)
 
+For auth and frontend PRs, also run:
+
+```bash
+cd frontend
+npm ci
+npx tsc --noEmit
+npm run lint
+npm test
+npm run build
+
+cd ../auth
+npm ci
+npm run typecheck
+npm run build
+npm test
+```
+
+`auth/npm test` requires a disposable PostgreSQL 17 database and test-only
+environment variables. It does not use Supabase or live email.
+
 ## Branches and commits
 
 - The default branch is `main`. Feature work branches off `dev` and PRs back into `dev`.

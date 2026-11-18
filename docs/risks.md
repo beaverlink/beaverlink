@@ -86,6 +86,16 @@ This is the only risk register for BeaverLink. Risks are sorted with high-high f
 - **Response:** AGENTS.md points agents at these docs; one approval and green CI to merge.
 - **Trigger:** two PRs solve the same problem in different ways.
 
+### R9. Password reset email delivery is not configured
+
+- **Statement:** if SMTP is missing or misconfigured, password reset requests cannot deliver reset links, despite otherwise valid account recovery requests.
+- **Category:** Technical
+- **Likelihood:** Medium for new deployments, low once deployment configuration is reviewed.
+- **Impact:** High, because users cannot recover accounts.
+- **Owner:** Benjamin Smithynunta
+- **Response:** use Mailpit for local testing; configure SMTP variables only through environment configuration in deployed environments. The auth service reports missing configuration locally without logging tokens or links.
+- **Trigger:** a valid reset request completes without an email in a mail-testing inbox or production mail-provider dashboard.
+
 ## External Prerequisites
 
 | Prerequisite | Needed for | Owner | Asked of | Asked or start-by | Status |

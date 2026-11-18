@@ -25,6 +25,7 @@ At OSU Alumni Association networking events, students and alumni do not know who
 | FR-4 | A user sees a ranked list of people to meet at an event. | Must | This is the core feature. | Planned | Given seed profiles, the list is ordered by match score and excludes the user themself. |
 | FR-5 | Each recommendation explains why the two people matched. | Should | Explanations build trust, but a ranked list alone still works. | Planned | Each match shows per-feature scores that sum to its total score. |
 | FR-6 | Profiles can be filled from more than one source (manual entry first, OSU Connections later). | Could | Depends on OSU and Gravyty approvals we do not control. | Planned | Adding a new source needs no schema change (RFC: profile data source). |
+| FR-7 | A user can request and complete a password reset. | Must | Account recovery must not reveal whether an email is registered. | In progress | `/forgot-password` always returns the generic confirmation; `/reset-password` accepts a valid one-hour, one-use token, enforces 12–128 characters, and redirects to login after success. |
 
 ## Non-Functional Requirements
 
