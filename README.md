@@ -132,10 +132,37 @@ npm test
 npm run build
 ```
 
-> Demo auth and data only. Accounts live in `src/auth/demoUsers.ts` with a
-> plaintext password, and all people/events/matches are fake fixtures in
-> `src/data/`. Replace both with real authentication and backend data before
-> any real use.
+The Vitest suite uses mocks for the Better Auth browser client and real React
+component behavior. It verifies signup, login, logout, protected routes,
+password validation, and password recovery UI. Component fixtures use synthetic
+accounts and fake event/profile data only.
+
+## Authentication service tests
+
+The auth service test suite requires PostgreSQL. A plain PostgreSQL 17 database
+can be provided locally with Docker, Podman, or another PostgreSQL host:
+
+```bash
+cd auth
+npm ci
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/beaverlink_auth_test \
+DATABASE_SSL_MODE=disable \
+BETTER_AUTH_SECRET=local-test-secret-with-at-least-32-characters \
+BETTER_AUTH_URL=http://127.0.0.1:3000 \
+FRONTEND_URL=http://127.0.0.1:5173 \
+npm test
+npm run typecheck
+npm run build
+```
+
+The integration suite uses synthetic users, real migration SQL, real Better
+Auth HTTP endpoints, and plain PostgreSQL. No real SMTP server or live email
+is required. Email sending is isolated by leaving SMTP variables unset.
+
+GitHub Actions creates a temporary `postgres:17-alpine` service container,
+waits for it to become healthy, sets `DATABASE_SSL_MODE=disable`, runs migration
+tests twice, and executes the Better Auth integration suite. CI never connects
+to Supabase or uses hosted credentials.
 
 ## Docs
 

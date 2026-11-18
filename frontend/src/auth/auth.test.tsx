@@ -141,6 +141,39 @@ describe('Better Auth integration', () => {
     })
   })
 
+  it('allows existing accounts with short passwords to log in', async () => {
+    authMocks.signInEmail.mockResolvedValue({ data: {}, error: null })
+    authMocks.getSession
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValue({
+        data: { user: realUser, session: {} },
+        error: null,
+      })
+
+    renderApp()
+    await submitAuth(realUser.email, 'oldpass123')
+
+    await waitFor(() => {
+      expect(authMocks.signInEmail).toHaveBeenCalledWith({
+        email: realUser.email,
+        password: 'oldpass123',
+      })
+    })
+  })
+
+  it('links login users to the forgot-password page', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Forgot password?' }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Forgot password?' }),
+    ).toBeInTheDocument()
+  })
+
   it('creates an account with Better Auth', async () => {
     authMocks.signUpEmail.mockResolvedValue({ data: {}, error: null })
     authMocks.getSession
@@ -404,6 +437,48 @@ describe('Better Auth integration', () => {
     expect(authMocks.requestPasswordReset).toHaveBeenCalled()
     expect(await screen.findByRole('status')).toHaveTextContent(
       'If this email is associated with an account',
+    )
+  })
+
+  it('shows a loading state while requesting a password reset', async () => {
+    authMocks.requestPasswordReset.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve({ data: { status: true }, error: null }), 50)
+        }),
+    )
+    renderApp('/forgot-password')
+
+    await userEvent.type(
+      await screen.findByLabelText('Email'),
+      realUser.email,
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Send reset link' }),
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Sending…' }),
+    ).toBeDisabled()
+  })
+
+  it('shows an error when the password-reset request fails', async () => {
+    authMocks.requestPasswordReset.mockResolvedValue({
+      data: null,
+      error: { message: 'Service unavailable' },
+    })
+    renderApp('/forgot-password')
+
+    await userEvent.type(
+      await screen.findByLabelText('Email'),
+      realUser.email,
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Send reset link' }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Unable to request a password reset',
     )
   })
 

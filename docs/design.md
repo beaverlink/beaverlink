@@ -64,3 +64,19 @@ Each has a proposed RFC, either in `docs/rfcs/` or in an open pull request:
 - Can Vercel or Cloudflare's free plan run FastAPI, and a Node auth service next to it if Better Auth is chosen?
 - Which OAuth providers can alumni use (Google, LinkedIn, OSU)?
 - Does the CI Postgres image need extra extensions once migrations exist?
+
+## Testing architecture
+
+Frontend authentication behavior is tested with Vitest and Testing Library.
+Browser auth calls are mocked at the Better Auth client boundary; protected
+routes, validation, and password recovery UI behavior run as React components.
+
+The auth service is tested over HTTP against a disposable plain PostgreSQL
+database. These tests apply the SQL migrations twice, exercise Better Auth
+signup/login/logout/session/reset endpoints, and inspect synthetic database
+rows. SMTP delivery is disabled in integration tests; reset tokens are read
+only from the temporary verification table to complete the real reset flow.
+
+GitHub Actions runs frontend, FastAPI, and auth checks in separate jobs. The
+auth job provisions `postgres:17-alpine`, waits for readiness, and supplies
+test-only environment variables with SSL disabled.

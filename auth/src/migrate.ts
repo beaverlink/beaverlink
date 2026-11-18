@@ -1,10 +1,11 @@
 import 'dotenv/config'
 import { readdirSync, readFileSync } from 'node:fs'
 import { pool } from './db.js'
+import { pathToFileURL } from 'node:url'
 
 const migrationsDir = new URL('../migrations/', import.meta.url)
 
-async function runMigrations() {
+export async function runMigrations() {
   const files = readdirSync(migrationsDir)
     .filter((file) => /^\d+_.*\.sql$/.test(file))
     .sort()
@@ -78,4 +79,6 @@ async function main() {
   }
 }
 
-void main()
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+  void main()
+}
