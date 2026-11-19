@@ -10,11 +10,12 @@ This is the only risk register for BeaverLink. Risks are sorted with high-high f
 
 - **Statement:** if the partner does not give us an email to register the hosting accounts with, we cannot set up production in a way the partner owns, and the week 10 deployment may slip.
 - **Category:** Business
-- **Likelihood:** Low, because the partner agreed to free cloud hosting on 2026-10-16 and the email will be requested at the 2026-11-06 meeting.
+- **Likelihood:** High, because the trigger fired and the email now needs OSU Foundation security approval, with Thanksgiving week before the week 10 deadline.
 - **Impact:** High, because deployment is the fall milestone.
 - **Owner:** Benjamin Smithynunta
-- **Response:** ask the partner for the email at the 2026-11-06 meeting, and pick the host so setup can start as soon as it arrives.
+- **Response:** asked the partner on 2026-11-06 and picked the host (#10). The partner sent the request to the OSU Foundation, whose Systems team is reviewing it. Followed up with the Foundation on 2026-11-19, asking for the email by 2026-11-30. Code work continues on personal Supabase projects or Docker Postgres.
 - **Trigger:** no email by 2026-11-08.
+- **Status:** triggered on 2026-11-08. Tracked in #9, and blocks #12 and #13.
 
 ### R2. No data-use terms
 
@@ -91,12 +92,12 @@ This is the only risk register for BeaverLink. Risks are sorted with high-high f
 | Prerequisite | Needed for | Owner | Asked of | Asked or start-by | Status |
 | --- | --- | --- | --- | --- | --- |
 | Agreement to host on free cloud plans | Week 10 deployment | Whole team | OSU Alumni Association (partner) | Asked 2026-10-16 (in-person meeting) | Agreed |
-| Partner email to register hosting accounts | Week 10 deployment | Benjamin Smithynunta | OSU Alumni Association (partner) | Will ask at the partner meeting on 2026-11-06 | Not yet asked |
+| Partner email to register hosting accounts | Week 10 deployment | Benjamin Smithynunta | OSU Alumni Association (partner) | Asked 2026-11-06 (partner meeting) | Waiting on OSU Foundation security approval |
 | Data-use terms for student and alumni data | Any real data | Andy Nguyen | OSU Alumni Association (partner) | Start by 2026-11-29 | Open |
 | OSU enables Graduway API access | Profile import | Andy Nguyen | OSU Connections admin (via Gravyty contact) | Asked 2026-10-22 | In progress; early answers suggest the API lacks the fields matching needs |
 | Gravyty legal approval to store profile data | Profile import | Andy Nguyen | Gravyty | Asked 2026-10-22 | Pending |
 
 ## Staging and Rollback Plan
 
-- **Staging (where changes are tried before users see them):** every PR runs CI and is tested locally. Once the host is picked, the host gets two environments: `dev` deploys to staging, and `main` deploys to production after it is checked on staging. Owner: Benjamin Smithynunta. Lands by 2026-11-22 (fall week 8).
-- **Rollback (how a bad change is undone):** use the host's rollback to the previous production deployment (both Vercel and Cloudflare offer one), then revert the merge on `main` with a PR so the code matches. Schema changes ship as migrations with a tested down step. Owner: Benjamin Smithynunta. Lands by 2026-11-22 (fall week 8).
+- **Staging (where changes are tried before users see them):** every PR runs CI and is tested locally. Once the host is picked, the host gets two environments: `dev` deploys to staging, and `main` deploys to production after it is checked on staging. Owner: Benjamin Smithynunta. Blocked by R1. Lands by 2026-12-04 (fall week 10).
+- **Rollback (how a bad change is undone):** use the host's rollback to the previous production deployment (both Vercel and Cloudflare offer one), then revert the merge on `main` with a PR so the code matches. Schema changes ship as migrations with a tested down step. Owner: Benjamin Smithynunta. Blocked by R1. Lands by 2026-12-04 (fall week 10).
