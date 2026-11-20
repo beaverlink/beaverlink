@@ -1,6 +1,6 @@
 # BeaverLink Requirements
 
-Status at this commit: the backend scaffold (`GET /health`) and a frontend profile form that does not save yet. Everything marked *Planned* is not built yet. Priorities use MoSCoW (Must, Should, Could, Won't).
+Status at this commit: the backend scaffold (`GET /health`) and a frontend profile form that saves to a mock store. Everything marked *Planned* is not built yet. Priorities use MoSCoW (Must, Should, Could, Won't).
 
 ## Problem Statement
 
