@@ -941,7 +941,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Consumes: `Profile`, `SignupRole`, `SuggestionInput`, `majors`.
 - Produces:
   - `AvatarUpload({ name, value, onChange })` — circular well showing the initial or `value` (data-URL); file picker labeled "Add a profile photo"; resizes to ≤256px and calls `onChange(dataUrl)`.
-  - `ProfileForm({ role, initial?, submitLabel, onSubmit })` where `role: SignupRole`. Renders the two-column, role-specific fields + goals and calls `onSubmit(profile: Profile)` when valid.
+  - `ProfileForm({ role, userName, initial?, submitLabel, onSubmit })` where `role: SignupRole` and `userName: string` (the signed-in user's display name, used only for the avatar-well initial — `Profile` has no name field). Renders the two-column, role-specific fields + goals and calls `onSubmit(profile: Profile)` when valid.
   - `goalOptions: Record<SignupRole, string[]>`, `industries: string[]`, `studentYears: string[]` exported for reuse/tests.
 
 - [ ] **Step 1: Write the failing test** — `frontend/src/components/profile/ProfileForm.test.tsx`
@@ -956,7 +956,7 @@ describe('ProfileForm', () => {
   it('shows guest-specific fields and submits a profile', async () => {
     const onSubmit = vi.fn()
     const u = userEvent.setup()
-    render(<ProfileForm role="guest" submitLabel="Continue" onSubmit={onSubmit} />)
+    render(<ProfileForm role="guest" userName="Riley Guest" submitLabel="Continue" onSubmit={onSubmit} />)
 
     // Guest fields present; student-only field absent.
     expect(screen.getByLabelText('Company / organization')).toBeInTheDocument()
@@ -976,7 +976,7 @@ describe('ProfileForm', () => {
   it('requires at least one goal', async () => {
     const onSubmit = vi.fn()
     const u = userEvent.setup()
-    render(<ProfileForm role="student" submitLabel="Continue" onSubmit={onSubmit} />)
+    render(<ProfileForm role="student" userName="Pat Student" submitLabel="Continue" onSubmit={onSubmit} />)
     await u.type(screen.getByLabelText('Major'), 'Computer Science')
     await u.type(screen.getByLabelText('Location'), 'Corvallis, OR')
     await u.click(screen.getByRole('button', { name: 'Continue' }))
@@ -1118,16 +1118,17 @@ function emptyProfile(): Profile {
 
 export function ProfileForm({
   role,
+  userName,
   initial,
   submitLabel,
   onSubmit,
 }: {
   role: SignupRole
+  userName: string
   initial?: Profile
   submitLabel: string
   onSubmit: (profile: Profile) => void
 }) {
-  const [name] = useState(initial?.company ?? '') // avatar initial falls back to '?'
   // Merge over emptyProfile() so older/partial saved profiles (missing the
   // history arrays) never crash the history editors below.
   const [profile, setProfile] = useState<Profile>({ ...emptyProfile(), ...initial })
@@ -1154,7 +1155,7 @@ export function ProfileForm({
   return (
     <form className="mt-6" noValidate onSubmit={handleSubmit}>
       <div className="mb-6">
-        <AvatarUpload name={name} value={profile.avatarUrl} onChange={(url) => set('avatarUrl', url)} />
+        <AvatarUpload name={userName} value={profile.avatarUrl} onChange={(url) => set('avatarUrl', url)} />
       </div>
 
       <div className="grid grid-cols-1 gap-x-7 gap-y-5 sm:grid-cols-2">
@@ -1675,7 +1676,7 @@ import { EducationEditor } from './EducationEditor'
   it('renders empty experience/education sections and submits without any entries', async () => {
     const onSubmit = vi.fn()
     const u = userEvent.setup()
-    render(<ProfileForm role="guest" submitLabel="Continue" onSubmit={onSubmit} />)
+    render(<ProfileForm role="guest" userName="Riley Guest" submitLabel="Continue" onSubmit={onSubmit} />)
 
     expect(screen.getByText('No experience added yet.')).toBeInTheDocument()
     expect(screen.getByText('No education added yet.')).toBeInTheDocument()
@@ -1808,7 +1809,7 @@ export function OnboardingProfilePage() {
 
   return (
     <AuthCard title="Finish your profile" subtitle={roleWord[role]} wide>
-      <ProfileForm role={role} submitLabel="Continue to BeaverLink" onSubmit={handleSubmit} />
+      <ProfileForm role={role} userName={user.name} submitLabel="Continue to BeaverLink" onSubmit={handleSubmit} />
     </AuthCard>
   )
 }
@@ -2078,6 +2079,7 @@ function ProfilePage() {
         <h1 className="text-2xl font-bold tracking-tight text-ink">Your profile</h1>
         <ProfileForm
           role={formRole(user.role)}
+          userName={user.name}
           initial={initial}
           submitLabel="Save profile"
           onSubmit={handleSubmit}
