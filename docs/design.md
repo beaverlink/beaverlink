@@ -38,8 +38,48 @@ flowchart LR
 | Endpoint | Status | Contract |
 | --- | --- | --- |
 | `GET /health` | Built | Returns `200` with `{"status": "ok"}`. Tested by `backend/tests/test_health.py`. |
+| `GET /profiles/me` | Planned | Returns `200` with the signed-in user's profile, or `404` if they have not created one yet. |
+| `PUT /profiles/me` | Planned | Creates or replaces the signed-in user's profile. Returns `200` with the saved profile, or `422` with the invalid fields. |
+| `PUT /events/{event_id}/survey` | Planned | Saves the signed-in user's survey answers for one event. Fields are not decided yet. |
+| `GET /events/{event_id}/matches` | Planned | Returns the signed-in user's ranked matches for one event, highest score first (see the match shape below). |
+| `POST /events/{event_id}/check-in` | Planned | Marks the signed-in user as arrived, so live matching can skip no-shows. |
 
 Planned rule: all data goes through FastAPI; the frontend never queries the database directly.
+
+Every planned endpoint requires a Better Auth token in `Authorization: Bearer <token>`, which FastAPI checks against Better Auth's public keys. A missing or invalid token gets `401`. Users can only reach their own profile, because there is no endpoint that takes another user's ID.
+
+**Profile.** JSON fields use snake_case.
+
+```json
+{
+  "profile_type": "alumnus",
+  "student_year": null,
+  "graduation_year": 2015,
+  "major": "Computer Science",
+  "industry": "Healthcare",
+  "job_title": "Software Engineer",
+  "goals": ["Mentor a student"],
+  "goal_details": "",
+  "updated_at": "2026-11-20T18:00:00Z"
+}
+```
+
+- `profile_type` is `student` or `alumnus`. Someone who is both (an OSU grad now in an OSU grad program) picks how they want to be matched and can change it later. Event roles and admin rights are stored separately, not on the profile.
+- Students need `student_year` and `major`. Alumni need `graduation_year` (four digits, not in the future) and `industry`.
+- `goals` needs at least one entry. `job_title` and `goal_details` are optional.
+- When a user picks "Other" for industry, `industry` holds the text they typed.
+
+**Match.** Per FR-5, the factor scores add up to the match score.
+
+```json
+{
+  "person_id": "p-123",
+  "score": 82,
+  "factors": [
+    { "key": "complementary-goals", "label": "Complementary goals", "weight": 40, "score": 35, "explanation": "You want a mentor and they mentor students." }
+  ]
+}
+```
 
 ## Data Model
 
