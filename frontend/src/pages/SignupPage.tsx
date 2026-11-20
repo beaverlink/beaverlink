@@ -33,9 +33,14 @@ export function SignupPage() {
   const [role, setRole] = useState<SignupRole>('student')
   const [error, setError] = useState('')
   const [formError, setFormError] = useState('')
-  const [justSignedUp, setJustSignedUp] = useState(false)
+  // Only redirect an already-signed-in visitor away from /signup. Frozen at
+  // mount so a successful signup() later in this component's life (which also
+  // sets `user`) can never trigger this — it structurally can't race with the
+  // explicit navigate() in handleCreate, regardless of AuthProvider's internal
+  // timing.
+  const [wasAlreadySignedIn] = useState(() => Boolean(user))
 
-  if (user && !justSignedUp) return <Navigate to="/home" replace />
+  if (wasAlreadySignedIn) return <Navigate to="/home" replace />
 
   function next() {
     setError('')
@@ -58,7 +63,6 @@ export function SignupPage() {
     if (!name.trim()) return setError('Enter your name.')
     try {
       await signup({ email, password, name, role })
-      setJustSignedUp(true)
       navigate('/onboarding/profile', { replace: true })
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Unable to create account.')
