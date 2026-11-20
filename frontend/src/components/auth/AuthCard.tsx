@@ -24,9 +24,9 @@ export function AuthCard({ title, subtitle, onBack, children, wide }: AuthCardPr
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="absolute left-5 top-5 grid h-10 w-10 place-items-center rounded-xl text-stone-500 hover:bg-bark-tint hover:text-ink"
+            className="absolute left-5 top-5 grid h-10 w-10 place-items-center rounded-xl text-stone-500 hover:bg-bark-tint hover:text-ink focus:outline-none focus:ring-2 focus:ring-osu/40"
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
               <path d="M15 6l-6 6 6 6" />
             </svg>
           </button>
