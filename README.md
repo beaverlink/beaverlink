@@ -2,7 +2,7 @@
 
 BeaverLink recommends who OSU students and alumni should meet at OSU Alumni Association networking events, and explains why each match makes sense.
 
-Status: backend scaffold (`GET /health`) plus a front-end-only demo login (no real authentication yet). See [docs/requirements.md](docs/requirements.md) and [docs/design.md](docs/design.md).
+Status: backend with `GET /health` and the profile API (`/profiles/me`, not usable until the token check exists), plus a front-end-only demo login (no real authentication yet). See [docs/requirements.md](docs/requirements.md) and [docs/design.md](docs/design.md).
 
 ## Quickstart
 
@@ -41,6 +41,15 @@ npx supabase start
 ```
 
 This runs PostgreSQL 17 in Docker at `postgresql://postgres:postgres@127.0.0.1:54322/postgres`. Stop it with `npx supabase stop`.
+
+Point the backend at it and create the tables, from `backend/` with the virtual environment active:
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+python -m app.migrate up
+```
+
+`python -m app.migrate down` rolls back the latest migration. Without `DATABASE_URL`, `pytest` skips the database tests, but CI always runs them.
 
 ## Frontend
 

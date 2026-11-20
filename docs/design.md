@@ -2,9 +2,9 @@
 
 ## What Exists at This Commit
 
-A FastAPI backend scaffold in `backend/` with one endpoint, `GET /health`, and one pytest test. A Vite + React + TypeScript frontend in `frontend/` with a front-end-only demo login (hardcoded accounts in `src/auth/demoUsers.ts`) and a role-based demo experience: a public landing page, and per-role dashboards (student, alumnus, organizer) that illustrate the planned recommendation flow — ranked matches with per-factor "why" breakdowns, event check-ins, and organizer matching-health views. All of it runs on fake in-memory fixtures in `src/data/` (people, events, attendees, computed matches); there is no backend integration, no real authentication, and no database schema yet. `supabase/config.toml` configures local PostgreSQL 17 for development, and CI uses the same major version. CI (`.github/workflows/ci.yml`) runs `ruff` and `pytest` for the backend and `tsc`, `eslint`, Vitest, and `vite build` for the frontend, on every pull request to `dev` and `main`; the frontend job activates now that `frontend/package-lock.json` exists.
+A FastAPI backend in `backend/` with `GET /health` and the profile endpoints (`GET` and `PUT /profiles/me`), which store profiles in PostgreSQL. The profile endpoints reject every request with `401` until FastAPI checks Better Auth tokens. A Vite + React + TypeScript frontend in `frontend/` with a front-end-only demo login (hardcoded accounts in `src/auth/demoUsers.ts`) and a role-based demo experience: a public landing page, and per-role dashboards (student, alumnus, organizer) that illustrate the planned recommendation flow — ranked matches with per-factor "why" breakdowns, event check-ins, and organizer matching-health views. All of it runs on fake in-memory fixtures in `src/data/` (people, events, attendees, computed matches); the frontend does not call the backend yet, and there is no real authentication. `supabase/config.toml` configures local PostgreSQL 17 for development, and CI uses the same major version. CI (`.github/workflows/ci.yml`) runs `ruff` and `pytest` for the backend and `tsc`, `eslint`, Vitest, and `vite build` for the frontend, on every pull request to `dev` and `main`; the frontend job activates now that `frontend/package-lock.json` exists.
 
-The profile form at `/profile` validates student and alumni input but does not save it.
+The profile form at `/profile` validates student and alumni input but is not connected to the profile API yet.
 
 ## Context
 
@@ -28,8 +28,8 @@ Zoom level: containers (the parts inside BeaverLink).
 ```mermaid
 flowchart LR
   U[Browser] --> FE[React frontend<br/>demo UI, mock data]
-  FE --> API[FastAPI backend<br/>scaffold exists]
-  API --> DB[(PostgreSQL + pgvector<br/>planned)]
+  FE -.not yet.-> API[FastAPI backend<br/>profile API]
+  API --> DB[(PostgreSQL + pgvector<br/>profiles table)]
   FE -.sign-in.-> AUTH[Auth service<br/>undecided]
 ```
 
@@ -38,15 +38,15 @@ flowchart LR
 | Endpoint | Status | Contract |
 | --- | --- | --- |
 | `GET /health` | Built | Returns `200` with `{"status": "ok"}`. Tested by `backend/tests/test_health.py`. |
-| `GET /profiles/me` | Planned | Returns `200` with the signed-in user's profile, or `404` if they have not created one yet. |
-| `PUT /profiles/me` | Planned | Creates or replaces the signed-in user's profile. Returns `200` with the saved profile, or `422` with the invalid fields. |
+| `GET /profiles/me` | Built, returns `401` until the token check exists | Returns `200` with the signed-in user's profile, or `404` if they have not created one yet. Tested by `backend/tests/test_profiles.py`. |
+| `PUT /profiles/me` | Built, returns `401` until the token check exists | Creates or replaces the signed-in user's profile. Returns `200` with the saved profile, or `422` with the invalid fields. Tested by `backend/tests/test_profiles.py`. |
 | `PUT /events/{event_id}/survey` | Planned | Saves the signed-in user's survey answers for one event. Fields are not decided yet. |
 | `GET /events/{event_id}/matches` | Planned | Returns the signed-in user's ranked matches for one event, highest score first (see the match shape below). |
 | `POST /events/{event_id}/check-in` | Planned | Marks the signed-in user as arrived, so live matching can skip no-shows. |
 
 Planned rule: all data goes through FastAPI; the frontend never queries the database directly.
 
-Every planned endpoint requires a Better Auth token in `Authorization: Bearer <token>`, which FastAPI checks against Better Auth's public keys. A missing or invalid token gets `401`. Users can only reach their own profile, because there is no endpoint that takes another user's ID.
+Every endpoint except `/health` requires a Better Auth token in `Authorization: Bearer <token>`, which FastAPI checks against Better Auth's public keys. A missing or invalid token gets `401`. Users can only reach their own profile, because there is no endpoint that takes another user's ID.
 
 **Profile.** JSON fields use snake_case.
 
@@ -65,8 +65,9 @@ Every planned endpoint requires a Better Auth token in `Authorization: Bearer <t
 ```
 
 - `profile_type` is `student` or `alumnus`. Someone who is both (an OSU grad now in an OSU grad program) picks how they want to be matched and can change it later. Event roles and admin rights are stored separately, not on the profile.
-- Students need `student_year` and `major`. Alumni need `graduation_year` (four digits, not in the future) and `industry`.
-- `goals` needs at least one entry. `job_title` and `goal_details` are optional.
+- Students need `student_year` (`First year` through `Fifth year or later`, or `Graduate student`) and `major`. Alumni need `graduation_year` (four digits, not in the future) and `industry`. Fields for the other profile type are cleared, not stored.
+- `goals` needs 1 to 10 entries. `job_title` and `goal_details` are optional.
+- Text is trimmed. Fields are limited to 100 characters, except `goal_details`, which allows 1000.
 - When a user picks "Other" for industry, `industry` holds the text they typed.
 
 **Match.** Per FR-5, the factor scores add up to the match score.
@@ -83,7 +84,9 @@ Every planned endpoint requires a Better Auth token in `Authorization: Bearer <t
 
 ## Data Model
 
-None yet. Planned tables: users, profiles, events, surveys, matches. If embeddings are adopted, they go in a separate `profile_embeddings` table so they can be dropped without touching anything else. Profiles and surveys are personal data (see `docs/requirements.md`, C-1).
+**Built:** `profiles`, one row per user, keyed by the Better Auth user ID. Its columns match the profile fields above, and it has no foreign key to Better Auth's `user` table because that table lives in the auth service's schema. Schema changes are SQL files in `backend/migrations/`, each with a down step, applied with `python -m app.migrate up` and rolled back with `python -m app.migrate down`. Backend tests apply them to CI's Postgres and test the rollback.
+
+**Planned tables:** events, surveys, matches. If embeddings are adopted, they go in a separate `profile_embeddings` table so they can be dropped without touching anything else. Profiles and surveys are personal data (see `docs/requirements.md`, C-1).
 
 ## Deployment
 
