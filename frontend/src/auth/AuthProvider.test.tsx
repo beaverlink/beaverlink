@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
+import { useEffect } from 'react'
 import { useAuth } from './useAuth'
 import { AuthProvider } from './AuthProvider'
 import type { AuthContextValue } from './types'
@@ -7,8 +8,11 @@ import type { AuthContextValue } from './types'
 // Grab the live context value so we can drive signup/saveProfile directly.
 let ctx: AuthContextValue
 function Probe() {
-  ctx = useAuth()
-  return <span data-testid="state">{ctx.user ? `${ctx.user.email}:${ctx.user.hasProfile}` : 'anon'}</span>
+  const value = useAuth()
+  useEffect(() => {
+    ctx = value
+  })
+  return <span data-testid="state">{value.user ? `${value.user.email}:${value.user.hasProfile}` : 'anon'}</span>
 }
 function setup() {
   render(<AuthProvider><Probe /></AuthProvider>)
