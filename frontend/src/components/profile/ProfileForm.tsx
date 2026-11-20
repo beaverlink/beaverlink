@@ -30,6 +30,43 @@ function emptyProfile(): Profile {
   return { location: '', goals: [], experience: [], education: [], source: 'manual' }
 }
 
+type ProfileErrors = Partial<Record<keyof Profile, string>>
+
+function isValidGraduationYear(value: string) {
+  const year = Number(value)
+  return /^\d{4}$/.test(value) && year >= 1900 && year <= new Date().getFullYear()
+}
+
+// Only checks the fields shown for the given role.
+function validate(profile: Profile, role: SignupRole): ProfileErrors {
+  const errors: ProfileErrors = {}
+
+  if (!profile.location.trim()) errors.location = 'Enter your location.'
+
+  if (role === 'student') {
+    if (!profile.studentYear) errors.studentYear = 'Choose your year.'
+    if (!profile.major?.trim()) errors.major = 'Enter your major.'
+  } else if (role === 'alumnus') {
+    if (!isValidGraduationYear((profile.graduationYear ?? '').trim())) {
+      errors.graduationYear = 'Enter a valid four-digit year.'
+    }
+    if (!profile.industry) errors.industry = 'Choose your industry.'
+    if (profile.industry === 'Other' && !profile.otherIndustry?.trim()) {
+      errors.otherIndustry = 'Enter your industry.'
+    }
+  } else if (role === 'guest') {
+    if (!profile.company?.trim()) errors.company = 'Enter your company or organization.'
+    if (!profile.industry) errors.industry = 'Choose your industry.'
+    if (profile.industry === 'Other' && !profile.otherIndustry?.trim()) {
+      errors.otherIndustry = 'Enter your industry.'
+    }
+  }
+
+  if (profile.goals.length === 0) errors.goals = 'Choose at least one goal.'
+
+  return errors
+}
+
 export function ProfileForm({
   role,
   userName,
@@ -46,7 +83,7 @@ export function ProfileForm({
   // Merge over emptyProfile() so older/partial saved profiles (missing the
   // history arrays) never crash the history editors below.
   const [profile, setProfile] = useState<Profile>({ ...emptyProfile(), ...initial })
-  const [goalError, setGoalError] = useState('')
+  const [errors, setErrors] = useState<ProfileErrors>({})
 
   function set<K extends keyof Profile>(key: K, value: Profile[K]) {
     setProfile((p) => ({ ...p, [key]: value }))
@@ -61,9 +98,9 @@ export function ProfileForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (profile.goals.length === 0) return setGoalError('Choose at least one goal.')
-    setGoalError('')
-    onSubmit(profile)
+    const nextErrors = validate(profile, role)
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length === 0) onSubmit(profile)
   }
 
   return (
@@ -75,13 +112,13 @@ export function ProfileForm({
       <div className="grid grid-cols-1 gap-x-7 gap-y-5 sm:grid-cols-2">
         {role === 'student' && (
           <>
-            <Field id="studentYear" label="Year">
+            <Field id="studentYear" label="Year" error={errors.studentYear}>
               <select id="studentYear" className={inputClass} value={profile.studentYear ?? ''} onChange={(e) => set('studentYear', e.target.value)}>
                 <option value="">Select one</option>
                 {studentYears.map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </Field>
-            <Field id="major" label="Major">
+            <Field id="major" label="Major" error={errors.major}>
               <SuggestionInput id="major" className={inputClass} options={majors} placeholder="Start typing or enter your own" value={profile.major ?? ''} onChange={(v) => set('major', v)} />
             </Field>
           </>
@@ -89,15 +126,20 @@ export function ProfileForm({
 
         {role === 'alumnus' && (
           <>
-            <Field id="graduationYear" label="Graduation year">
+            <Field id="graduationYear" label="Graduation year" error={errors.graduationYear}>
               <input id="graduationYear" inputMode="numeric" maxLength={4} className={inputClass} value={profile.graduationYear ?? ''} onChange={(e) => set('graduationYear', e.target.value)} />
             </Field>
-            <Field id="industry" label="Industry">
+            <Field id="industry" label="Industry" error={errors.industry}>
               <select id="industry" className={inputClass} value={profile.industry ?? ''} onChange={(e) => set('industry', e.target.value)}>
                 <option value="">Select one</option>
                 {industries.map((i) => <option key={i} value={i}>{i}</option>)}
               </select>
             </Field>
+            {profile.industry === 'Other' && (
+              <Field id="otherIndustry" label="Your industry" error={errors.otherIndustry}>
+                <input id="otherIndustry" className={inputClass} value={profile.otherIndustry ?? ''} onChange={(e) => set('otherIndustry', e.target.value)} />
+              </Field>
+            )}
             <Field id="company" label="Company">
               <input id="company" className={inputClass} value={profile.company ?? ''} onChange={(e) => set('company', e.target.value)} />
             </Field>
@@ -109,22 +151,27 @@ export function ProfileForm({
 
         {role === 'guest' && (
           <>
-            <Field id="company" label="Company / organization">
+            <Field id="company" label="Company / organization" error={errors.company}>
               <input id="company" className={inputClass} value={profile.company ?? ''} onChange={(e) => set('company', e.target.value)} />
             </Field>
             <Field id="position" label="Position / title">
               <input id="position" className={inputClass} value={profile.position ?? ''} onChange={(e) => set('position', e.target.value)} />
             </Field>
-            <Field id="industry" label="Industry">
+            <Field id="industry" label="Industry" error={errors.industry}>
               <select id="industry" className={inputClass} value={profile.industry ?? ''} onChange={(e) => set('industry', e.target.value)}>
                 <option value="">Select one</option>
                 {industries.map((i) => <option key={i} value={i}>{i}</option>)}
               </select>
             </Field>
+            {profile.industry === 'Other' && (
+              <Field id="otherIndustry" label="Your industry" error={errors.otherIndustry}>
+                <input id="otherIndustry" className={inputClass} value={profile.otherIndustry ?? ''} onChange={(e) => set('otherIndustry', e.target.value)} />
+              </Field>
+            )}
           </>
         )}
 
-        <Field id="location" label="Location">
+        <Field id="location" label="Location" error={errors.location}>
           <input id="location" className={inputClass} value={profile.location} onChange={(e) => set('location', e.target.value)} />
         </Field>
         <Field id="linkedinUrl" label="LinkedIn" optional>
@@ -142,7 +189,7 @@ export function ProfileForm({
             </label>
           ))}
         </div>
-        {goalError && <p role="alert" className="mt-2 text-sm text-red-600">{goalError}</p>}
+        {errors.goals && <p role="alert" className="mt-2 text-sm text-red-600">{errors.goals}</p>}
       </fieldset>
 
       <div className="mt-7">

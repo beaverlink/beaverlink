@@ -15,6 +15,7 @@ describe('ProfileForm', () => {
 
     await u.type(screen.getByLabelText('Company / organization'), 'Rivian')
     await u.type(screen.getByLabelText('Position / title'), 'Recruiter')
+    await u.selectOptions(screen.getByLabelText('Industry'), 'Technology')
     await u.type(screen.getByLabelText('Location'), 'Seattle, WA')
     await u.click(screen.getByRole('checkbox', { name: 'Grow my network' }))
     await u.click(screen.getByRole('button', { name: 'Continue' }))
@@ -45,6 +46,7 @@ describe('ProfileForm', () => {
 
     await u.type(screen.getByLabelText('Company / organization'), 'Rivian')
     await u.type(screen.getByLabelText('Position / title'), 'Recruiter')
+    await u.selectOptions(screen.getByLabelText('Industry'), 'Technology')
     await u.type(screen.getByLabelText('Location'), 'Seattle, WA')
     await u.click(screen.getByRole('checkbox', { name: 'Grow my network' }))
     await u.click(screen.getByRole('button', { name: 'Continue' }))

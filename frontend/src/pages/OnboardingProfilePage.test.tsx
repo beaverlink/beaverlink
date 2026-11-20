@@ -30,6 +30,7 @@ describe('OnboardingProfilePage', () => {
     seed(false)
     const u = userEvent.setup()
     renderOnboarding()
+    await u.selectOptions(screen.getByLabelText('Year'), 'Third year')
     await u.type(screen.getByLabelText('Major'), 'Computer Science')
     await u.type(screen.getByLabelText('Location'), 'Corvallis, OR')
     await u.click(screen.getByRole('checkbox', { name: 'Find a mentor' }))
