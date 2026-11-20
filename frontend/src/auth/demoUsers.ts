@@ -16,6 +16,7 @@ export const demoUsers: DemoAccount[] = [
     email: 'student@oregonstate.edu',
     role: 'student',
     label: 'Student',
+    hasProfile: true,
   },
   {
     id: 'u-alumnus',
@@ -23,6 +24,7 @@ export const demoUsers: DemoAccount[] = [
     email: 'alumni@oregonstate.edu',
     role: 'alumnus',
     label: 'Alumnus',
+    hasProfile: true,
   },
   {
     id: 'u-organizer',
@@ -30,5 +32,6 @@ export const demoUsers: DemoAccount[] = [
     email: 'organizer@oregonstate.edu',
     role: 'admin',
     label: 'Event organizer',
+    hasProfile: true,
   },
 ]

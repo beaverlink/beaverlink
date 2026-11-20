@@ -16,6 +16,7 @@ const roleAvatar: Record<Role, string> = {
   student: 'bg-osu-tint text-osu-dark',
   alumnus: 'bg-emerald-50 text-emerald-700',
   admin: 'bg-indigo-50 text-indigo-700',
+  guest: 'bg-bark-tint text-bark',
 }
 
 export function LoginPage() {
