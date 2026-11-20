@@ -1,5 +1,5 @@
 // Public marketing landing (Persuade). Shown at "/" to logged-out visitors.
-// "Get started" / "Sign in" / "Join now" all route to /login in this demo.
+// "Get started" / "Join now" route to /signup; "Sign in" routes to /login.
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import osuCampus from '../assets/osu-campus.png'
@@ -77,7 +77,7 @@ export function PublicLanding() {
                 Sign in
               </Link>
               <Link
-                to="/login"
+                to="/signup"
                 className="rounded-xl bg-osu px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-osu/30 transition-colors hover:bg-osu-dark"
               >
                 Join now
@@ -96,7 +96,7 @@ export function PublicLanding() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                to="/login"
+                to="/signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-base font-semibold text-osu-dark shadow-sm transition-transform hover:-translate-y-0.5"
               >
                 Get started
@@ -149,7 +149,7 @@ export function PublicLanding() {
               you to.
             </p>
             <Link
-              to="/login"
+              to="/signup"
               className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-base font-semibold text-osu-dark shadow-sm transition-transform hover:-translate-y-0.5"
             >
               Get started
