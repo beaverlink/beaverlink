@@ -6,6 +6,7 @@ import { Skeleton } from '../components/shared'
 // role never downloads (or can reach) another role's page.
 const StudentLanding = lazy(() => import('../features/student/StudentLanding'))
 const AlumniLanding = lazy(() => import('../features/alumni/AlumniLanding'))
+const GuestLanding = lazy(() => import('../features/guest/GuestLanding'))
 const AdminLanding = lazy(() => import('../features/admin/AdminLanding'))
 
 function LoadingScreen() {
@@ -32,7 +33,9 @@ export function HomePage() {
       ? StudentLanding
       : user.role === 'alumnus'
         ? AlumniLanding
-        : AdminLanding
+        : user.role === 'guest'
+          ? GuestLanding
+          : AdminLanding
 
   return (
     <Suspense fallback={<LoadingScreen />}>

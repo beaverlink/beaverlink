@@ -2,6 +2,10 @@ import type { Role } from '../auth/types'
 
 const roleStyles: Record<Role, { label: string; className: string }> = {
   student: { label: 'Student', className: 'bg-osu-tint text-osu-dark ring-osu/15' },
+  guest: {
+    label: 'Guest',
+    className: 'bg-bark-tint text-bark ring-bark/20',
+  },
   alumnus: {
     label: 'Alumnus',
     className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
