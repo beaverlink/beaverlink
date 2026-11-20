@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a stepped sign-up flow (student / alum / guest) that flows into role-specific profile creation, plus a restyled sign-in, all on the existing mock `AuthProvider`.
+**Goal:** Add a stepped sign-up flow (student / alum / guest) that flows into role-specific profile creation — including a LinkedIn-style, optional work-experience and education history — plus a restyled sign-in, all on the existing mock `AuthProvider`.
 
-**Architecture:** Frontend-only, Phase 1. Auth stays behind the provider-agnostic `AuthProvider` (localStorage mock) — no `@supabase/supabase-js`, no backend. Sign-up registers a mock account with `hasProfile: false`; `ProtectedRoute` forces profile-less users into `/onboarding/profile`; saving the profile flips `hasProfile` and lands the user on `/home`.
+**Architecture:** Frontend-only, Phase 1. Auth stays behind the provider-agnostic `AuthProvider` (localStorage mock) — no `@supabase/supabase-js`, no backend. Sign-up registers a mock account with `hasProfile: false`; `ProtectedRoute` forces profile-less users into `/onboarding/profile`; saving the profile flips `hasProfile` and lands the user on `/home`. The profile form carries two optional LinkedIn-style list editors (`ExperienceEditor`, `EducationEditor`) for add/edit/remove entries, stored as arrays on `Profile`.
+
+**Added without a live check-in:** the experience/education history feature was requested while the project owner was unavailable to answer design questions overnight. Reasonable defaults were chosen (optional, not required to finish onboarding; free-text dates, not date pickers; no modal, inline add-form) and are called out in Tasks 7–8 and in the spec for morning review.
 
 **Tech Stack:** React 19, React Router 7, TypeScript, Tailwind v4 (`@theme` tokens), Vitest + Testing Library.
 
@@ -37,7 +39,9 @@
   - `type Role = 'student' | 'alumnus' | 'guest' | 'admin'`
   - `type SignupRole = 'student' | 'alumnus' | 'guest'`
   - `interface User { id: string; name: string; email: string; role: Role; hasProfile: boolean; avatarUrl?: string }`
-  - `interface Profile { location: string; linkedinUrl?: string; goals: string[]; goalDetails?: string; avatarUrl?: string; studentYear?: string; major?: string; graduationYear?: string; industry?: string; otherIndustry?: string; company?: string; jobTitle?: string; position?: string; source: 'manual' }`
+  - `interface ExperienceEntry { id: string; title: string; company: string; location?: string; startDate: string; endDate?: string; current: boolean; description?: string }`
+  - `interface EducationEntry { id: string; school: string; degree?: string; fieldOfStudy?: string; startYear: string; endYear?: string; description?: string }`
+  - `interface Profile { location: string; linkedinUrl?: string; goals: string[]; goalDetails?: string; avatarUrl?: string; studentYear?: string; major?: string; graduationYear?: string; industry?: string; otherIndustry?: string; company?: string; jobTitle?: string; position?: string; experience: ExperienceEntry[]; education: EducationEntry[]; source: 'manual' }`
   - `interface SignupInput { email: string; password: string; name: string; role: SignupRole }`
   - `interface AuthContextValue { user: User | null; isLoading: boolean; login(email, password): Promise<void>; signup(input: SignupInput): Promise<void>; logout(): void; saveProfile(profile: Profile): void }`
 
@@ -105,8 +109,35 @@ export interface Profile {
   jobTitle?: string
   // guest
   position?: string
+  // LinkedIn-style history, all roles, optional (Task 7/8)
+  experience: ExperienceEntry[]
+  education: EducationEntry[]
   // which source filled this profile (RFC Option D swappability)
   source: 'manual'
+}
+
+// A single work-experience entry (LinkedIn-style). `current: true` means the
+// person still works there and `endDate` is unused.
+export interface ExperienceEntry {
+  id: string
+  title: string
+  company: string
+  location?: string
+  startDate: string
+  endDate?: string
+  current: boolean
+  description?: string
+}
+
+// A single education entry (LinkedIn-style).
+export interface EducationEntry {
+  id: string
+  school: string
+  degree?: string
+  fieldOfStudy?: string
+  startYear: string
+  endYear?: string
+  description?: string
 }
 
 export interface SignupInput {
@@ -207,7 +238,7 @@ describe('AuthProvider signup + profile', () => {
       await ctx.signup({ email: 'p@oregonstate.edu', password: 'secret12', name: 'Pat', role: 'student' })
     })
     act(() => {
-      ctx.saveProfile({ location: 'Corvallis, OR', goals: ['Find a mentor'], studentYear: 'Third year', major: 'CS', source: 'manual' })
+      ctx.saveProfile({ location: 'Corvallis, OR', goals: ['Find a mentor'], studentYear: 'Third year', major: 'CS', experience: [], education: [], source: 'manual' })
     })
     expect(screen.getByTestId('state')).toHaveTextContent('p@oregonstate.edu:true')
   })
@@ -1082,7 +1113,7 @@ function Field({ id, label, optional, error, children }: {
 }
 
 function emptyProfile(): Profile {
-  return { location: '', goals: [], source: 'manual' }
+  return { location: '', goals: [], experience: [], education: [], source: 'manual' }
 }
 
 export function ProfileForm({
@@ -1097,7 +1128,9 @@ export function ProfileForm({
   onSubmit: (profile: Profile) => void
 }) {
   const [name] = useState(initial?.company ?? '') // avatar initial falls back to '?'
-  const [profile, setProfile] = useState<Profile>(initial ?? emptyProfile())
+  // Merge over emptyProfile() so older/partial saved profiles (missing the
+  // history arrays) never crash the history editors below.
+  const [profile, setProfile] = useState<Profile>({ ...emptyProfile(), ...initial })
   const [goalError, setGoalError] = useState('')
 
   function set<K extends keyof Profile>(key: K, value: Profile[K]) {
@@ -1221,7 +1254,459 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Onboarding page + route wiring + redirects
+### Task 7: ExperienceEditor (LinkedIn-style work history)
+
+**Files:**
+- Create: `frontend/src/components/profile/ExperienceEditor.tsx`
+- Test: `frontend/src/components/profile/ExperienceEditor.test.tsx` (new)
+
+**Interfaces:**
+- Consumes: `ExperienceEntry` (Task 1).
+- Produces: `ExperienceEditor({ value: ExperienceEntry[]; onChange: (next: ExperienceEntry[]) => void })`. Renders existing entries as cards (title · company, dates, optional description) with "Edit" and "Remove" buttons, plus an "+ Add experience" button that reveals an inline form (title, company, location optional, start, "I currently work here" checkbox, end — hidden/cleared when current, description optional). Saving the inline form appends or updates an entry (by `id`, generated with `crypto.randomUUID()`) and calls `onChange` with the new array; Cancel discards the in-progress entry without calling `onChange`.
+
+- [ ] **Step 1: Write the failing test** — `frontend/src/components/profile/ExperienceEditor.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ExperienceEditor } from './ExperienceEditor'
+
+describe('ExperienceEditor', () => {
+  it('starts empty and adds an entry', async () => {
+    const onChange = vi.fn()
+    const u = userEvent.setup()
+    render(<ExperienceEditor value={[]} onChange={onChange} />)
+
+    expect(screen.getByText('No experience added yet.')).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: '+ Add experience' }))
+
+    await u.type(screen.getByLabelText('Title'), 'Software Engineering Intern')
+    await u.type(screen.getByLabelText('Company'), 'Rivian')
+    await u.type(screen.getByLabelText('Start date'), 'Jun 2025')
+    await u.click(screen.getByRole('checkbox', { name: 'I currently work here' }))
+    await u.click(screen.getByRole('button', { name: 'Save experience' }))
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ title: 'Software Engineering Intern', company: 'Rivian', startDate: 'Jun 2025', current: true }),
+    ])
+  })
+
+  it('renders an existing entry with remove support', async () => {
+    const onChange = vi.fn()
+    const u = userEvent.setup()
+    const entry = { id: '1', title: 'PM', company: 'Nike', startDate: 'Jan 2020', endDate: 'Dec 2022', current: false }
+    render(<ExperienceEditor value={[entry]} onChange={onChange} />)
+
+    expect(screen.getByText('PM · Nike')).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: 'Remove PM at Nike' }))
+    expect(onChange).toHaveBeenCalledWith([])
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd frontend && npx vitest run src/components/profile/ExperienceEditor.test.tsx`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Create `frontend/src/components/profile/ExperienceEditor.tsx`**
+
+```tsx
+import { useState } from 'react'
+import type { ExperienceEntry } from '../../auth/types'
+import { Button } from '../Button'
+
+const inputClass =
+  'h-[46px] w-full rounded-xl border border-stone-300 bg-white px-3.5 text-sm text-ink focus:border-osu focus:outline-none focus:ring-2 focus:ring-osu/30'
+
+function emptyDraft(): Omit<ExperienceEntry, 'id'> {
+  return { title: '', company: '', location: '', startDate: '', endDate: '', current: false, description: '' }
+}
+
+export function ExperienceEditor({
+  value,
+  onChange,
+}: {
+  value: ExperienceEntry[]
+  onChange: (next: ExperienceEntry[]) => void
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState<Omit<ExperienceEntry, 'id'>>(emptyDraft())
+
+  function startAdd() {
+    setDraft(emptyDraft())
+    setEditingId(null)
+    setAdding(true)
+  }
+
+  function startEdit(entry: ExperienceEntry) {
+    const { id, ...rest } = entry
+    setDraft(rest)
+    setEditingId(id)
+    setAdding(true)
+  }
+
+  function cancel() {
+    setAdding(false)
+    setEditingId(null)
+  }
+
+  function save() {
+    if (editingId) {
+      onChange(value.map((e) => (e.id === editingId ? { id: editingId, ...draft } : e)))
+    } else {
+      onChange([...value, { id: crypto.randomUUID(), ...draft }])
+    }
+    cancel()
+  }
+
+  function remove(id: string) {
+    onChange(value.filter((e) => e.id !== id))
+  }
+
+  return (
+    <div>
+      {value.length === 0 && !adding && (
+        <p className="text-sm text-stone-500">No experience added yet.</p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {value.map((entry) => (
+          <div key={entry.id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-ink">{entry.title} · {entry.company}</p>
+                <p className="text-sm text-stone-500">
+                  {entry.startDate} – {entry.current ? 'Present' : entry.endDate}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="text-sm font-semibold text-osu" onClick={() => startEdit(entry)}>Edit</button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${entry.title} at ${entry.company}`}
+                  className="text-sm font-semibold text-stone-400 hover:text-red-600"
+                  onClick={() => remove(entry.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {adding ? (
+        <div className="mt-3 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Title
+              <input className={inputClass} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Company
+              <input className={inputClass} value={draft.company} onChange={(e) => setDraft({ ...draft, company: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Location
+              <input className={inputClass} value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Start date
+              <input className={inputClass} placeholder="Jun 2025" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} />
+            </label>
+            {!draft.current && (
+              <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+                End date
+                <input className={inputClass} placeholder="Aug 2025" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} />
+              </label>
+            )}
+            <label className="flex items-center gap-2 self-end text-sm text-ink">
+              <input
+                type="checkbox"
+                className="h-5 w-5 rounded accent-osu"
+                checked={draft.current}
+                onChange={(e) => setDraft({ ...draft, current: e.target.checked, endDate: e.target.checked ? '' : draft.endDate })}
+              />
+              I currently work here
+            </label>
+          </div>
+          <label className="mt-3 flex flex-col gap-1 text-xs font-semibold text-bark">
+            Description (optional)
+            <textarea className="rounded-xl border border-stone-300 bg-white p-3 text-sm" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+          </label>
+          <div className="mt-3 flex gap-2">
+            <Button type="button" onClick={save}>Save experience</Button>
+            <Button type="button" variant="secondary" onClick={cancel}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={startAdd} className="mt-3 text-sm font-semibold text-osu hover:underline">
+          + Add experience
+        </button>
+      )}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `cd frontend && npx vitest run src/components/profile/ExperienceEditor.test.tsx`
+Expected: PASS (2 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add frontend/src/components/profile/ExperienceEditor.tsx frontend/src/components/profile/ExperienceEditor.test.tsx
+git commit -m "feat: add LinkedIn-style ExperienceEditor for profile history
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8: EducationEditor + wire both history editors into ProfileForm
+
+**Files:**
+- Create: `frontend/src/components/profile/EducationEditor.tsx`
+- Modify: `frontend/src/components/profile/ProfileForm.tsx`
+- Test: `frontend/src/components/profile/EducationEditor.test.tsx` (new)
+- Test: `frontend/src/components/profile/ProfileForm.test.tsx` (extend)
+
+**Interfaces:**
+- Consumes: `EducationEntry` (Task 1), `ExperienceEditor` (Task 7).
+- Produces: `EducationEditor({ value: EducationEntry[]; onChange: (next: EducationEntry[]) => void })`, same card/add-form pattern as `ExperienceEditor` (school, degree optional, field of study optional, start year, end year optional, description optional). `ProfileForm` renders an "Experience" section (`ExperienceEditor`) and an "Education" section (`EducationEditor`) below Goals, wired to `profile.experience` / `profile.education` via `set('experience', …)` / `set('education', …)`. Both sections are optional — submitting with zero entries in either is allowed.
+
+- [ ] **Step 1: Write the failing test** — `frontend/src/components/profile/EducationEditor.test.tsx`
+
+```tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { EducationEditor } from './EducationEditor'
+
+describe('EducationEditor', () => {
+  it('starts empty and adds an entry', async () => {
+    const onChange = vi.fn()
+    const u = userEvent.setup()
+    render(<EducationEditor value={[]} onChange={onChange} />)
+
+    expect(screen.getByText('No education added yet.')).toBeInTheDocument()
+    await u.click(screen.getByRole('button', { name: '+ Add education' }))
+
+    await u.type(screen.getByLabelText('School'), 'Oregon State University')
+    await u.type(screen.getByLabelText('Degree'), 'B.S.')
+    await u.type(screen.getByLabelText('Field of study'), 'Computer Science')
+    await u.type(screen.getByLabelText('Start year'), '2023')
+    await u.click(screen.getByRole('button', { name: 'Save education' }))
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ school: 'Oregon State University', degree: 'B.S.', fieldOfStudy: 'Computer Science', startYear: '2023' }),
+    ])
+  })
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd frontend && npx vitest run src/components/profile/EducationEditor.test.tsx`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Create `frontend/src/components/profile/EducationEditor.tsx`**
+
+```tsx
+import { useState } from 'react'
+import type { EducationEntry } from '../../auth/types'
+import { Button } from '../Button'
+
+const inputClass =
+  'h-[46px] w-full rounded-xl border border-stone-300 bg-white px-3.5 text-sm text-ink focus:border-osu focus:outline-none focus:ring-2 focus:ring-osu/30'
+
+function emptyDraft(): Omit<EducationEntry, 'id'> {
+  return { school: '', degree: '', fieldOfStudy: '', startYear: '', endYear: '', description: '' }
+}
+
+export function EducationEditor({
+  value,
+  onChange,
+}: {
+  value: EducationEntry[]
+  onChange: (next: EducationEntry[]) => void
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState<Omit<EducationEntry, 'id'>>(emptyDraft())
+
+  function startAdd() {
+    setDraft(emptyDraft())
+    setEditingId(null)
+    setAdding(true)
+  }
+
+  function startEdit(entry: EducationEntry) {
+    const { id, ...rest } = entry
+    setDraft(rest)
+    setEditingId(id)
+    setAdding(true)
+  }
+
+  function cancel() {
+    setAdding(false)
+    setEditingId(null)
+  }
+
+  function save() {
+    if (editingId) {
+      onChange(value.map((e) => (e.id === editingId ? { id: editingId, ...draft } : e)))
+    } else {
+      onChange([...value, { id: crypto.randomUUID(), ...draft }])
+    }
+    cancel()
+  }
+
+  function remove(id: string) {
+    onChange(value.filter((e) => e.id !== id))
+  }
+
+  return (
+    <div>
+      {value.length === 0 && !adding && (
+        <p className="text-sm text-stone-500">No education added yet.</p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {value.map((entry) => (
+          <div key={entry.id} className="rounded-xl border border-stone-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-ink">{entry.school}</p>
+                <p className="text-sm text-stone-500">
+                  {[entry.degree, entry.fieldOfStudy].filter(Boolean).join(', ')}
+                  {(entry.degree || entry.fieldOfStudy) && ' · '}
+                  {entry.startYear}–{entry.endYear || 'present'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="text-sm font-semibold text-osu" onClick={() => startEdit(entry)}>Edit</button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${entry.school}`}
+                  className="text-sm font-semibold text-stone-400 hover:text-red-600"
+                  onClick={() => remove(entry.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {adding ? (
+        <div className="mt-3 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              School
+              <input className={inputClass} value={draft.school} onChange={(e) => setDraft({ ...draft, school: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Degree
+              <input className={inputClass} value={draft.degree} onChange={(e) => setDraft({ ...draft, degree: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Field of study
+              <input className={inputClass} value={draft.fieldOfStudy} onChange={(e) => setDraft({ ...draft, fieldOfStudy: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              Start year
+              <input className={inputClass} inputMode="numeric" maxLength={4} value={draft.startYear} onChange={(e) => setDraft({ ...draft, startYear: e.target.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-bark">
+              End year (optional)
+              <input className={inputClass} inputMode="numeric" maxLength={4} value={draft.endYear} onChange={(e) => setDraft({ ...draft, endYear: e.target.value })} />
+            </label>
+          </div>
+          <label className="mt-3 flex flex-col gap-1 text-xs font-semibold text-bark">
+            Description (optional)
+            <textarea className="rounded-xl border border-stone-300 bg-white p-3 text-sm" rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+          </label>
+          <div className="mt-3 flex gap-2">
+            <Button type="button" onClick={save}>Save education</Button>
+            <Button type="button" variant="secondary" onClick={cancel}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={startAdd} className="mt-3 text-sm font-semibold text-osu hover:underline">
+          + Add education
+        </button>
+      )}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 4: Wire both editors into `ProfileForm.tsx`** — add imports and insert two sections between the closing `</fieldset>` of Goals and the submit `<Button>`:
+
+```tsx
+import { ExperienceEditor } from './ExperienceEditor'
+import { EducationEditor } from './EducationEditor'
+```
+
+```tsx
+      <div className="mt-7">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-bark">Experience</p>
+        <ExperienceEditor value={profile.experience} onChange={(experience) => set('experience', experience)} />
+      </div>
+
+      <div className="mt-7">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-bark">Education</p>
+        <EducationEditor value={profile.education} onChange={(education) => set('education', education)} />
+      </div>
+```
+
+(Insert immediately after the Goals `</fieldset>` and before `<Button type="submit" …>`.)
+
+- [ ] **Step 5: Extend `ProfileForm.test.tsx`** — add a test confirming the history sections render and are optional:
+
+```tsx
+  it('renders empty experience/education sections and submits without any entries', async () => {
+    const onSubmit = vi.fn()
+    const u = userEvent.setup()
+    render(<ProfileForm role="guest" submitLabel="Continue" onSubmit={onSubmit} />)
+
+    expect(screen.getByText('No experience added yet.')).toBeInTheDocument()
+    expect(screen.getByText('No education added yet.')).toBeInTheDocument()
+
+    await u.type(screen.getByLabelText('Company / organization'), 'Rivian')
+    await u.type(screen.getByLabelText('Position / title'), 'Recruiter')
+    await u.type(screen.getByLabelText('Location'), 'Seattle, WA')
+    await u.click(screen.getByRole('checkbox', { name: 'Grow my network' }))
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ experience: [], education: [] }))
+  })
+```
+
+- [ ] **Step 6: Run the whole profile component suite**
+
+Run: `cd frontend && npx vitest run src/components/profile/`
+Expected: PASS — `ExperienceEditor.test.tsx`, `EducationEditor.test.tsx`, `ProfileForm.test.tsx` (now 4 tests) all green.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add frontend/src/components/profile/
+git commit -m "feat: add EducationEditor and wire experience/education into ProfileForm
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 9: Onboarding page + route wiring + redirects
 
 **Files:**
 - Create: `frontend/src/pages/OnboardingProfilePage.tsx`
@@ -1369,7 +1854,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Restyle LoginPage onto AuthCard; add sign-up link; gate demo autofill
+### Task 10: Restyle LoginPage onto AuthCard; add sign-up link; gate demo autofill
 
 **Files:**
 - Modify: `frontend/src/pages/LoginPage.tsx`
@@ -1505,7 +1990,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 9: ProfilePage edit mode reuses ProfileForm
+### Task 11: ProfilePage edit mode reuses ProfileForm
 
 **Files:**
 - Modify: `frontend/src/pages/ProfilePage.tsx`
@@ -1622,7 +2107,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 10: Minimal guest home
+### Task 12: Minimal guest home
 
 **Files:**
 - Create: `frontend/src/features/guest/GuestLanding.tsx`
@@ -1719,7 +2204,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
-### Task 11: Public landing links + full-suite green + docs
+### Task 13: Public landing links + full-suite green + docs
 
 **Files:**
 - Modify: `frontend/src/pages/PublicLanding.tsx` (point "Get started" → `/signup`, "Sign in" → `/login`; verify existing links)
@@ -1766,13 +2251,14 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 Run `cd frontend && npm run dev` and, in the browser:
 
-1. `/signup` → step through email → password → name + each role → land on `/onboarding/profile`.
-2. Fill the role-specific form (try adding a photo), submit → land on the right `/home` (student/alum dashboard, guest minimal home).
+1. `/signup` → step through email → password (try a weak one, confirm the complexity error) → name + each role → land on `/onboarding/profile`.
+2. Fill the role-specific form (try adding a photo, add one experience entry and one education entry, then remove one), submit → land on the right `/home` (student/alum dashboard, guest minimal home).
 3. Log out → `/login` → sign back in → straight to `/home` (no re-onboarding).
 4. Visit `/home` while signed out → `/login`. Visit `/onboarding/profile` after finishing → `/home`.
-5. `/profile` → edit a field → "Profile saved."
+5. `/profile` → edit a field, add/edit/remove an experience or education entry → "Profile saved."; refresh and confirm the history persisted.
 
 ## Self-review notes (coverage)
 
-- Spec "three roles" → Tasks 1, 5, 6, 10. "Photo" → Task 6. "Expanded fields (location/LinkedIn/company/industry/position)" → Task 6. "Wide two-column profile" → Tasks 4 (`wide`) + 6 (grid). "Guest `/home` default" → Task 10. "Stepped sign-up" → Task 5. "Onboarding redirect rule" → Tasks 3, 7. "Demo autofill behind dev flag" → Task 8. "Docs same PR" → Task 11. "No `@supabase/supabase-js`" → Global + Task 11 Step 6.
-- Type consistency: `Profile`/`SignupRole`/`SignupInput`/`AuthContextValue` defined in Task 1 and used verbatim in Tasks 2, 5, 6, 7, 9. `saveProfile(profile)`, `signup(input)` signatures consistent across Tasks 2, 5, 7, 9.
+- Spec "three roles" → Tasks 1, 5, 6, 12. "Photo" → Task 6. "Expanded fields (location/LinkedIn/company/industry/position)" → Task 6. "Wide two-column profile" → Tasks 4 (`wide`) + 6 (grid). "Guest `/home` default" → Task 12. "Stepped sign-up" → Task 5. "Password policy" → Task 5. "Onboarding redirect rule" → Tasks 3, 9. "Demo autofill behind dev flag" → Task 10. "LinkedIn-style experience/education, optional, all roles" → Tasks 1 (types), 7 (ExperienceEditor), 8 (EducationEditor + wiring). "No dedicated logo" → Global + Task 4 (`Logo` placeholder reused). "Docs same PR" → Task 13. "No `@supabase/supabase-js`" → Global + Task 13 Step 6.
+- Type consistency: `Profile`/`SignupRole`/`SignupInput`/`AuthContextValue`/`ExperienceEntry`/`EducationEntry` defined in Task 1 and used verbatim in Tasks 2, 5, 6, 7, 8, 9, 11. `saveProfile(profile)`, `signup(input)` signatures consistent across Tasks 2, 5, 9, 11. `emptyProfile()` (Task 6) and the `AuthProvider.test.tsx` `saveProfile` literal (Task 2) both updated to include `experience: []` / `education: []` since those fields are non-optional on `Profile`.
+- Backward-compat check: `ProfileForm`'s state init merges `{ ...emptyProfile(), ...initial }` (Task 6) so a saved profile predating the history fields (e.g. Task 11's test fixture, which deliberately omits them) doesn't crash `ExperienceEditor`/`EducationEditor`.

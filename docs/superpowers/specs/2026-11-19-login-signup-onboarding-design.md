@@ -104,6 +104,24 @@ Steps are deep-linkable but guarded (cannot skip ahead).
 heading (not stacked), fields in a two-column grid, and goals two-up, so even the alum's six fields
 fit in three short rows instead of a long scroll. Collapses to one column on narrow screens.
 
+**Experience & Education (LinkedIn-style history).** Below goals, two optional list sections —
+*Experience* and *Education* — shared by every role (alumni and guests have work history; students
+often have internships and their current program). Each renders as a stack of entry cards
+(title/company or school/degree, dates, optional description) with Edit/Delete, plus an
+"+ Add experience" / "+ Add education" button that opens an inline add form (no modal, so it stays
+simple and testable). **Entirely optional** — unlike the required fields above, adding zero entries
+does not block onboarding; LinkedIn itself doesn't require this at signup either. Added here
+because the request explicitly asked for LinkedIn-style experience/education entry, decided without
+a live check-in (owner unavailable) — flag for review once awake.
+
+- **Experience entry**: title, company, location (optional), start (free-text month/year),
+  "I currently work here" checkbox (hides/clears end), end (free-text, hidden if current),
+  description (optional).
+- **Education entry**: school, degree (optional), field of study (optional), start year, end year
+  (optional), description (optional).
+- Entries are local mock data (array on `Profile`), editable from both `/onboarding/profile` and
+  the `/profile` edit page.
+
 ## Data model (frontend)
 
 - `Role` = `'student' | 'alumnus' | 'guest' | 'admin'` (admin provisioned only).
@@ -114,6 +132,9 @@ fit in three short rows instead of a long scroll. Collapses to one column on nar
   - **Alum**: `graduationYear`, `industry` (+ `otherIndustry`), `company`, `jobTitle`, `major?`.
   - **Guest**: `company`, `position`, `industry` (+ `otherIndustry`).
   - Each field recorded with `source: 'manual'` (RFC Option D swappability).
+  - **History (all roles, optional)**: `experience: ExperienceEntry[]`, `education: EducationEntry[]`,
+    where `ExperienceEntry = { id, title, company, location?, startDate, endDate?, current, description? }`
+    and `EducationEntry = { id, school, degree?, fieldOfStudy?, startYear, endYear?, description? }`.
 - **Avatar** stored as a resized data-URL in localStorage (mock); real image hosting is Phase 2.
 - Mock persistence only; cleared like the current demo session. Fake data only.
 
