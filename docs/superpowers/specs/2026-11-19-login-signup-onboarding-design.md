@@ -84,12 +84,17 @@ headings and field text, **Beaver-Orange** (`#d73f09`) for actions / focus / sel
 **brown** (`#8a5a34`) for uppercase field labels, completed progress segments, and the photo well.
 Committed single theme (does not follow OS dark).
 
+There is no dedicated BeaverLink logo yet — all cards reuse the existing `Logo` placeholder (drawn
+connection mark + wordmark); no logo image is introduced.
+
 **Sign-up card (narrow, stepped).** Centered single column, logo at top, large step title, a
 "Step N of 3" dot indicator, one primary action, quiet top-left back arrow, secondary link below.
 Steps are deep-linkable but guarded (cannot skip ahead).
 
 - **Step 1 — email**: format validation; advances locally (no account yet).
-- **Step 2 — password**: password + confirm; length/match rules inline.
+- **Step 2 — password**: password + confirm. Policy: 8+ characters with an uppercase letter, a
+  lowercase letter, a number, and a special symbol (shown as inline helper text); mismatch and
+  weak-password errors inline.
 - **Step 3 — name + role**: full name and a three-way role selector. **Create account** submits.
   Role chosen here sets `User.role` and **pre-selects** the onboarding form's role, which then does
   not re-ask it. One mapping reconciles `User.role` `'alumnus'` with the form's `'alum'`.
