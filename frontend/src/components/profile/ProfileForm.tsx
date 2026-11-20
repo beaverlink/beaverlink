@@ -6,6 +6,8 @@ import { Button } from '../Button'
 import { AvatarUpload } from './AvatarUpload'
 import type { Profile, SignupRole } from '../../auth/types'
 import { studentYears, industries, goalOptions } from '../../data/profileOptions'
+import { ExperienceEditor } from './ExperienceEditor'
+import { EducationEditor } from './EducationEditor'
 
 const inputClass =
   'h-[52px] w-full rounded-xl border border-stone-300 bg-white px-4 text-base text-ink focus:border-osu focus:outline-none focus:ring-2 focus:ring-osu/30'
@@ -142,6 +144,16 @@ export function ProfileForm({
         </div>
         {goalError && <p role="alert" className="mt-2 text-sm text-red-600">{goalError}</p>}
       </fieldset>
+
+      <div className="mt-7">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-bark">Experience</p>
+        <ExperienceEditor value={profile.experience} onChange={(experience) => set('experience', experience)} />
+      </div>
+
+      <div className="mt-7">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-bark">Education</p>
+        <EducationEditor value={profile.education} onChange={(education) => set('education', education)} />
+      </div>
 
       <Button type="submit" className="mt-8 w-full">{submitLabel}</Button>
     </form>

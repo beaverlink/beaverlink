@@ -34,4 +34,21 @@ describe('ProfileForm', () => {
     expect(screen.getByText('Choose at least one goal.')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
+
+  it('renders empty experience/education sections and submits without any entries', async () => {
+    const onSubmit = vi.fn()
+    const u = userEvent.setup()
+    render(<ProfileForm role="guest" userName="Riley Guest" submitLabel="Continue" onSubmit={onSubmit} />)
+
+    expect(screen.getByText('No experience added yet.')).toBeInTheDocument()
+    expect(screen.getByText('No education added yet.')).toBeInTheDocument()
+
+    await u.type(screen.getByLabelText('Company / organization'), 'Rivian')
+    await u.type(screen.getByLabelText('Position / title'), 'Recruiter')
+    await u.type(screen.getByLabelText('Location'), 'Seattle, WA')
+    await u.click(screen.getByRole('checkbox', { name: 'Grow my network' }))
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ experience: [], education: [] }))
+  })
 })
