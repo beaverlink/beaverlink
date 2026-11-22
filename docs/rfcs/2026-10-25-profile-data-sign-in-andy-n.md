@@ -1,6 +1,6 @@
 # RFC: Profile Data Source and Sign-In for BeaverLink
 
-[Project ID]: BeaverLink
+Project 5: BeaverLink
 
 Andy Nguyen <nguyea28@oregonstate.edu>
 
@@ -8,127 +8,155 @@ Andy Nguyen <nguyea28@oregonstate.edu>
 | --- | --- |
 | Author | Andy Nguyen |
 | Date | 2026-10-25 |
-| Status | Proposed |
-| Decision Date | |
-| Deciders | |
+| Status | Accepted |
+| Decision Date | 2026-11-08 |
+| Deciders | Andy Nguyen, Benjamin Smithynunta, Brady Hanna, Tyler Quach |
 | Superseded By | |
 
 ## Problem and Context
 
-BeaverLink recommends who attendees should meet at OSU Alumni Association events and explains why each match makes sense. Those recommendations are only as good as the profile data behind them. To match a student interested in healthcare with an alum in healthcare recruiting, we need each user's major, industry, job, and goals. The team has to decide where that profile data comes from and how users sign in to BeaverLink.
+BeaverLink is a web app for the OSU Alumni Association's networking events. Students and alumni create a profile and fill out a short questionnaire about their goals for an event, and BeaverLink recommends who each person should meet, with a short explanation of why. This decision covers the part of the app everything else builds on: how users get an account, and where their profile data comes from.
 
-The obvious source is OSU Connections, the Alumni Association's existing profile platform, which runs on Gravyty's Graduway software. Our partner didn't require it, but since it's the platform the Alumni Association already uses, the team wants to build on it so users don't have to re-enter information they already have. On Oct 22, Nikki, our Gravyty contact, confirmed there's a REST API for profile data with no extra cost from Gravyty, but OSU has to set up API access on its side. She also shared Graduway's SSO feature, but it isn't clear yet whether outside apps like BeaverLink can use it to sign users in. Whether we can store the data in our own database is still pending with Gravyty's legal team.
+The obvious outside source is OSU Connections, the Alumni Association's existing networking site for students and alumni. It's built on Graduway, a platform from the company Gravyty, and Graduway has an API for reading profile data. Our partner didn't require it, but the team explored it so users wouldn't re-enter information they already have. On October 29, Nikki, our Gravyty contact, confirmed by email [4] that:
 
-This decision is hard to reverse. Where profiles come from determines our database schema, how users are identified, and our sign-in flow, and every other part of the app (matching, the event questionnaire, saved connections) depends on those. Switching sources later would mean a data migration and reworking authentication, likely after real users have accounts. It also commits the team to a third party whose timeline we don't control.
+- The API can look users up by email and return job title, company, industry, job function, education, and mentoring settings.
+- A platform admin at the Alumni Association has to enable API access.
+- There's only one API key, and it can also update and delete users.
+- Graduway's SSO can't sign users into an outside app.
+- Storing the data in our own database is still pending with Gravyty's legal team.
 
-The team wants to start building soon, and the schema and sign-in approach need to be settled first. If OSU's side takes months, that process needs to start now. If we do nothing, users create separate BeaverLink accounts and fill out profiles from scratch. That works, but the extra friction could keep people from signing up before an event, and BeaverLink would duplicate data the Alumni Association already has.
+The hard-to-reverse part isn't the database schema. A profile table with fields like major, industry, and goals can stay the same no matter where the data comes from. What's expensive to change is identity: whether a BeaverLink user is their own account or a copy of an outside one, and whether BeaverLink owns profile data or depends on another system's data agreements. Once real users have BeaverLink accounts, moving to an outside identity would mean re-linking every account and migrating their data.
+
+This had to be settled now because the team is building on it. Better Auth sign-up (`feat/auth-polish`), the `profiles` table and profile API (`feat/profile-api`), and a 3-step sign-up flow (`feat/login-signup`) are built and in review, and the profile form is merged (PR #24), all ahead of the first deployment planned for fall week 10. If we do nothing and keep standalone accounts with manual profiles, users fill out profiles by hand, and that friction could keep people from signing up before an event.
 
 ## Options
 
-### Option A: Pull Profiles from the OSU Connections API
+### Option A: Import Profiles from the OSU Connections API
 
-BeaverLink keeps its own user accounts, but when someone registers, the backend looks them up in OSU Connections by email through the Graduway API and imports their profile fields.
+BeaverLink keeps its own accounts, but at registration the backend looks users up in OSU Connections by email and imports their profile fields.
 
-**Benefits:** Users skip some of the profile setup, and the data matches what the Alumni Association already maintains.
+**Benefits:** The API returns most of what matching needs, so users would mostly confirm a prefilled profile.
 
-**Costs:** OSU has to set up API access, and we don't control how long that takes. Storing the data is still pending legal review. Email lookup can miss people, since OSU Connections accounts can use any email. Users without an OSU Connections profile need a fallback anyway.
+**Costs:** An Alumni Association admin has to enable access, and we don't control when. The only key can also update and delete users, so BeaverLink would hold write access to real alumni accounts. Storage is pending legal review, and email lookup misses anyone who signs up with a different email.
 
-**Right choice if:** OSU enables API access soon and legal approves storage.
+**Right choice if:** The Alumni Association enables access, legal approves storage, and someone outside the student team takes responsibility for the key.
 
-### Option B: OSU SSO with BeaverLink Profiles
+### Option B: OSU Login with BeaverLink Profiles
 
-Users sign in with their OSU login, and BeaverLink stores its own profile data, entered by the user.
+Users sign in with their OSU (ONID) account and enter their own profile.
 
-**Benefits:** No separate password, and identity is tied to a real OSU account.
+**Benefits:** No separate password, and each identity is tied to a real OSU account.
 
-**Costs:** It requires OSU IT approval to register the app, and most alumni no longer have an active OSU login. It also doesn't solve the profile data problem.
+**Costs:** It needs OSU IT approval, and ONID accounts expire after graduation, which would lock out most alumni. It also doesn't solve the profile data problem.
 
 **Right choice if:** BeaverLink were for current students only.
 
 ### Option C: Auto-Fill Profiles from Resumes or LinkedIn Exports
 
-Users upload a resume or their LinkedIn data export, and BeaverLink extracts the relevant fields for them to review.
+Users upload a resume or LinkedIn data export, and BeaverLink extracts fields for them to review.
 
-**Benefits:** No dependency on Gravyty or OSU, and it works for anyone.
+**Benefits:** No dependency on OSU or Gravyty, and it works for anyone.
 
-**Costs:** Parsing is error-prone, resumes hold more personal information than we need, and not everyone has a current resume on hand.
+**Costs:** Parsing is error-prone, resumes contain more personal information than we need, and not everyone has a current resume.
 
-**Right choice if:** OSU Connections access falls through entirely.
+**Right choice if:** Manual entry turns out to be the main reason people don't finish profiles.
 
-### Option D: Hybrid with a Swappable Data Source
+### Option D: Hybrid with Swappable Sources
 
-BeaverLink uses its own accounts and a profile schema we control. Profiles can be filled from more than one source: manual entry and resume parsing now, and the OSU Connections API once OSU enables it. Each source fills the same internal profile format.
+BeaverLink uses its own accounts, and profiles come from several sources, each tracked per field.
 
-**Benefits:** Development isn't blocked on OSU, and we can add the API later without changing the schema or sign-in. It can also offer Google and LinkedIn sign-in, matching OSU Connections.
+**Benefits:** Development isn't blocked on OSU, and sources can be added later.
 
-**Costs:** It's more upfront design work, since each source needs a mapping layer. We might build parts we never use if the API never comes through.
+**Costs:** Each source needs an adapter and source tracking. Since the schema can stay source-agnostic under any option, this layer only pays off once a second source exists.
 
-**Right choice if:** API access is likely but its timeline is uncertain, which is our situation now.
+**Right choice if:** A second source is likely soon, such as the API being approved.
 
-### Option E: Do Nothing (Standalone Accounts, Manual Profiles)
+### Option E: Partner-Provided Event Roster
 
-Users create a BeaverLink account and fill out their profile and event questionnaire by hand, with no outside integrations.
+Before an event, the Alumni Association exports registered attendees who agreed to share their information, and BeaverLink imports it to seed profiles.
 
-**Benefits:** It's the simplest to build, with no third-party dependencies.
+**Benefits:** It could test matching at a real event before self-serve sign-up is ready.
 
-**Costs:** Signup friction could keep people from finishing profiles, which hurts match quality. Adding OSU Connections later would likely mean redesigning the schema.
+**Costs:** It's real personal data, so it needs partner authorization and a data-handling policy first. It repeats for every event, an Eventbrite registration list only has the fields the registration form asks for, and an export taken before the event misses anyone who registers the day of or at the door, including guests alumni bring along [10].
 
-**Right choice if:** The prototype only needs to prove the matching works.
+**Right choice if:** The partner wants a pilot event and can provide a consented export.
+
+### Option F: Do Nothing (Standalone Accounts and Manual Profiles), the team's choice
+
+Users create a BeaverLink account and fill out their profile and event questionnaire by hand. Event registration happens on Eventbrite, and the confirmation would link to BeaverLink [9], so people can finish their profile before the event.
+
+**Benefits:** It's the simplest to build and depends on no one outside the team.
+
+**Costs:** Typing a profile takes time, so some people may skip it, and BeaverLink duplicates data the Alumni Association already has.
+
+**Right choice if:** Outside access is uncertain or risky, and the profile form is short enough that people finish it before the event.
 
 ## Analysis
 
-**Dependency and timeline.** The biggest difference between options is what they wait on. Nikki confirmed that the Graduway API exists and Gravyty charges nothing extra, but OSU has to set up access (Gravyty email, Oct 22, 2026). The [Graduway API docs](https://apidoc.graduway.com/) show that access uses a single platform-level API key and platform ID, so whoever administers OSU Connections would likely need to enable it. If that's the Alumni Association, our partner's team may be able to do it directly. We haven't confirmed who that admin is. Options A and B can't be built or tested until OSU acts, while C, D, and E can start immediately. Any option that blocks on OSU puts the whole schedule at risk.
+**Who controls access.** The biggest difference between options is who has to say yes. Option A needs an Alumni Association admin and Gravyty's legal team. Option B needs OSU IT, and [ONID accounts](https://oregonstate.teamdynamix.com/TDClient/KB/ArticleDet?ID=51559) stay active only a year after graduation. Option E needs partner authorization for every event. Options C and F depend on no one. Even under A, BeaverLink accounts stay separate, since Nikki confirmed there's no way to connect an existing OSU Connections account.
 
-**Who can actually sign in.** BeaverLink needs alumni, since they're who students most want to meet. OSU-issued accounts don't last past graduation. ONID accounts stay active for only one year after graduation and are then deactivated and deleted ([OSU ONID account policy](https://oregonstate.teamdynamix.com/TDClient/KB/ArticleDet?ID=51559)). OSU Connections itself allows sign-up with any email, LinkedIn, or Google ([registration page](https://osuconnections.org/account/registration)). This rules out Option B as the main sign-in method. It also exposes a gap in Option A: the email a user gives BeaverLink may not match their OSU Connections account, so email lookup alone would miss people. Offering Google and LinkedIn sign-in would raise the match rate, but users would still need a way to confirm or link the right profile.
+**Schema and maintainability.** The schema doesn't need to depend on where profile data comes from, and our code shows this. The first version of the `profiles` table (`backend/migrations/001_profiles.up.sql` on `feat/profile-api`) stores general fields like profile type, major, industry, job title, and goals, with nothing tied to an outside system. The table will keep changing regardless: Tyler's `feat/login-signup` branch already adds a guest role, since alumni sometimes bring guests [10], plus education and experience fields. Since `backend/app/migrate.py` applies and rolls back each migration in one transaction, changes like these, or a `source` column if a second source arrives, are cheap and reversible. Identity is the expensive part to change, and under F it stays in-house: Better Auth stores accounts in our own Postgres schema (`auth/src/auth.ts` on `feat/auth-polish`).
 
-**Data quality.** The Graduway API is less useful for matching than we expected. Its user search endpoint returns name, email, phone, job title, company, affiliation, and a profile ID ([Graduway API docs](https://apidoc.graduway.com/)). Job function, industry, education, mentoring settings, and custom profile sections appear only in the update endpoint, not in search results, and there are no endpoints for groups or event registrations. Even with full access, Option A would tell us someone's job title and company, not their field, major, or whether they want to mentor. Those would still have to come from BeaverLink's own questionnaire. The documentation may not cover everything, so we plan to ask Gravyty whether these fields can be read.
+**Security.** Option A has the biggest security cost. The [Graduway API documentation](https://apidoc.graduway.com/) shows one key covering search, update, and delete, and Nikki confirmed there's no read-only version. If a student project leaked that key, someone could edit or delete real alumni profiles. Under F, BeaverLink stores only what users type in, Better Auth handles password hashing, and Brady's stronger password rules and recovery are in review. The profile API rejects requests without a login (`backend/tests/test_profiles.py`). Option C collects more than we need, like phone numbers and addresses.
 
-**Security and privacy.** Every option stores personal information. A and D would hold data copied from OSU Connections, which depends on Gravyty's legal answer. Resumes contain more than we need, so we'd keep only the extracted fields. The Graduway API key is the bigger concern: the same key that reads profiles can update users, change their role to Admin, and delete them. It has to stay on the server, and we'd want to ask whether a read-only key is possible.
+**Performance and cost.** None of these options is expensive to run. Gravyty charges nothing extra, and one email lookup per sign-up is trivial at event scale. The real cost is team time: F is mostly built (PR #24 and the profile API), while A would add an adapter, key handling, and a consent step.
 
-**Complexity, cost, and performance.** E is the simplest to build, and D takes the most upfront work because each source needs its own mapping. None of the options adds direct cost, since Gravyty charges nothing extra for the API. Performance is a minor factor: the API returns up to 500 users per request, so an import or live lookup at signup is fast for event-sized groups.
+**Data quality and user effort.** A gives the richest starting profile. F relies on users filling out the form, which is its main weakness. Linking from Eventbrite registration reduces that risk by giving people days to finish. How long the form takes is still open while its fields change.
 
-**Maintainability and reversibility.** This is where D stands out. A and B lock the schema and sign-in to one external system. If that system changes or access is revoked, the core of the app has to be redesigned. E is cheap now but expensive later, since adding OSU Connections would mean changing the schema after users exist. D costs more upfront because each source needs a mapping into our own profile format, but it turns the hard-to-reverse part, the schema and identity model, into something we control. The schema is decided once, and the sources stay reversible. The API's `?example=true` mode returns sample data without touching real records, so we can build and test the integration under D before OSU grants access.
-
-**Uncertainty.** Three unknowns could change this analysis: whether OSU enables the API, whether Gravyty's legal team allows storing profile data, and which fields the API can read. If OSU says no, D still works with manual entry and resume parsing. If legal says we can't store data, the adapter can fetch profiles live instead of copying them.
+**Uncertainty.** We don't know yet whether most attendees will finish a profile before an event, whether the Alumni Association would enable the API later, or what Gravyty's legal team will say about storage. The first unknown decides whether F works, so the verification plan focuses on it.
 
 ## Recommendation and Verification Plan
 
-I recommend **Option D: a hybrid with a swappable data source.** BeaverLink will use its own accounts, with Google and LinkedIn sign-in, and a profile schema the team controls. Profiles will be filled from manual entry and the event questionnaire first, with resume parsing as an optional shortcut. The OSU Connections API becomes an additional source once OSU enables access.
+I recommend **Option F: standalone BeaverLink accounts with profiles entered by users**, which is what the team chose. It's the only option that doesn't depend on OSU, Gravyty, or a per-event export, it keeps identity in our own database, and it avoids holding a key that can edit real alumni accounts. Users sign in with email and password through Better Auth [5], which can add Google or LinkedIn sign-in later without moving accounts.
 
-D is the only option that isn't blocked by OSU and still leaves room for the integration our partner wants. Since the API can't provide the fields matching depends on, our own questionnaire is needed under any option, and D builds around that instead of fighting it.
+The targets below are starting points the team set in `docs/requirements.md`, to revise after the first results.
 
 **How we'll know it worked:**
 
-1. **Sources are swappable.** Each profile field records which source it came from. We'll build manual entry first, then a Graduway adapter tested against `?example=true`. *Passes if* adding the adapter requires no schema change or data migration.
-2. **Adapter tests in CI.** Tests check that each adapter maps its source into our profile format, including missing and malformed fields. *Fails if* a mapping test breaks after a source changes.
-3. **Signup is fast enough.** In usability testing with at least 5 users, *passes if* most complete their profile and questionnaire in under 5 minutes. If not, we prioritize resume parsing or the API.
-4. **Profile matching works.** With real API access, we measure how often a BeaverLink email finds an OSU Connections profile. *If under about 70%,* we add a step for users to confirm or search for their own profile.
-5. **The API key stays secret.** *Passes if* a secret scan in CI finds no key in the repo or frontend build.
-6. **Resume data is minimized.** *Passes if* a test confirms the uploaded file is deleted after extraction.
+1. **Profiles stay private to their owner.** CI runs `backend/tests/test_profiles.py` on every PR. It checks that requests without a login get `401`, and `test_users_only_see_their_own_profile` checks that a second user can't see the first user's profile. They use a stand-in login, so we'll rerun them once FastAPI verifies real Better Auth tokens. *Fails if* any endpoint returns another user's data.
+2. **Schema changes are reversible.** `backend/tests/test_migrations.py` rolls back `001_profiles`, confirms the table is gone, and reapplies it, in CI against Postgres. Every new migration gets the same check. *Fails if* a migration can't be rolled back cleanly.
+3. **People finish profiles before events.** At the first pilot event, we compare Eventbrite registrations against completed profiles and event surveys. *Target:* 60% of registered attendees finish before the event (Success Metrics). *If it falls short,* we shorten the survey and cut optional fields, then revisit prefilling through Option C or A.
+4. **Signup is fast enough.** At least 5 students and alumni outside the team sign up and complete their profile and an event survey while we time them. *Target:* most finish in under 5 minutes (NFR-4). *If it's slower,* we shorten the form before the pilot.
+5. **Matches are actually useful.** In a simulated event with at least 8 participants, each person enters their real goals and rates their top 3 recommendations as fitting or not, alongside 3 randomly picked people shown without labels. *Target:* most participants rate at least 2 of 3 recommendations as fitting, and rate them higher than the random picks. *If matches aren't better than random,* we check whether missing profile fields are the cause, which would be evidence to reconsider a richer data source.
 
-**Triggers to revisit this decision:**
-
-- If OSU hasn't enabled API access by the time we're building profile features, we continue without the adapter and tell our partner.
-- If Gravyty's legal team says we can't store profile data, the adapter fetches profiles live instead.
+**Triggers to revisit:** If check 3 misses at two events, the team reopens prefill options. If the Alumni Association enables the API, legal approves storage, and someone outside the student team manages the key, an import can be added as a new source with one migration.
 
 ## Constraints
 
-**Data use and privacy.** Profile data copied from OSU Connections is the biggest constraint. Until Gravyty's legal team answers, we won't store real OSU Connections data. Student information connected to OSU may also fall under FERPA, so we'll confirm with our partner what counts as directory information before importing anything beyond name and job details. Users will consent before any profile data is pulled or matched.
+**Data use (FERPA and partner terms).** Student data tied to OSU may fall under FERPA, and the partner hasn't given data-use terms yet (`docs/requirements.md` C-1, `docs/risks.md` R2). This rules out Option E until the partner authorizes a consented export, and it puts a condition on F: development and CI use fake seed data only (NFR-1), and checks 3 and 5 can't run with real users until terms are in place.
 
-**Third-party terms.** Using the Graduway API means following Gravyty's terms, which our partner's organization agrees to, not us. For LinkedIn, we'll only use [Sign In with LinkedIn](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2) and data exports users upload themselves, since LinkedIn's terms prohibit scraping profiles.
+**Third-party terms.** Gravyty hasn't approved storing OSU Connections data, and the only key can edit and delete real accounts, so Option A is out unless legal approves storage and the partner holds the key. LinkedIn prohibits scraping (C-7), so Option C could only use exports users upload themselves.
 
-**Licensing.** We'll check the license of any resume parsing library before adopting it and avoid copyleft licenses unless our partner is fine with them.
+**Personal data sent to another service.** Better Auth sends password-reset emails through an SMTP provider (`auth/src/email.ts` on `feat/auth-polish`), so user emails go to that provider. Under F, it has to be registered to the partner's account like the hosting (C-5), and reset links must never be logged, which the code already avoids.
 
-**IP and confidentiality.** The project has no NDA. Our Team Charter permits sharing team-created documents, synthetic data, and public OSU information with AI tools, prohibits real student or alumni data unless separately authorized, never permits credentials, and requires explicit approval for nonpublic partner documents and meeting notes. Development will use synthetic profiles and the API's example mode, and the Graduway key stays out of AI tools and version control.
+**Licensing.** The auth service uses Better Auth, Kysely, pg (MIT), and nodemailer (MIT-0). The backend uses FastAPI and Pydantic (MIT) and psycopg (LGPL-3.0), which only adds obligations if we modify psycopg itself. None of these rule out an option.
+
+**Confidentiality.** There's no NDA, but our Team Charter keeps real student data and credentials, including any Graduway key, out of AI tools and version control (C-4).
 
 ## Delegation and Validation
 
-- **What I handed to AI tools.** I used Claude to help draft this RFC from my own research: my email exchange with Nikki at Gravyty that includes my questions and her answers, and our team's meeting notes. Claude also searched for supporting sources and summarized the Graduway API documentation after I pasted it in. I set the direction and approved each section before moving on.
+- **What I handed to AI tools.** I used Claude to help draft and revise this RFC from my own material: Nikki's replies, our meeting notes (shared with the team's approval), the peer reviews, and our repository. Claude also helped draft my follow-up emails to Nikki, read the repo for evidence, looked up dependency licenses, and summarized the Graduway API docs. I used Claude Code to help write the profile form, profile API, and `profiles` migration, and reviewed the diffs before opening each PR. I chose the recommendation and approved each section.
 
-- **What checks made that reasonable.** The main checks are human: every factual claim links to its source, the RFC gets two peer reviews and an instructor review, and the charter requires unanimous team approval for decisions involving authentication and personal data. In the repo today, CI runs `ruff` and `pytest` for the backend and `tsc`, lint, tests, and build for the frontend on every PR to `dev` and `main`, once those folders have code. Merging requires one approval and passing CI. The adapter tests and secret scanning in my verification plan don't exist yet.
+- **What checks made that reasonable.** Every claim links to its source, two peer reviews and an instructor review read the draft, and the charter requires unanimous approval for decisions involving authentication and personal data. CI runs `ruff` and `pytest` against Postgres 17, plus `tsc`, ESLint, Vitest, and `vite build`, on every PR to `dev` and `main` (`.github/workflows/ci.yml`), and merging requires one approval and passing CI (`CONTRIBUTING.md`).
 
-- **Where I stopped and validated the result myself.** Several of Claude's first claims were guesses, and I corrected them. Claude assumed Graduway's SSO only covers logging into OSU Connections, which I changed to an open question. I checked the OSU Connections signup page myself and confirmed it accepts any email, LinkedIn, or Google. I read the Graduway API docs myself and confirmed the search endpoint returns job title and company but not job function or industry, which changed the analysis. Since this decision is hard to reverse, I opened each cited source to confirm the claims.
+- **Where I validated the result myself.**
+  - **The API's fields, because a wrong answer would have changed the recommendation.** The public docs only show basic fields for `GET /users`, so I asked Nikki directly, and her corrected answer is what this RFC uses.
+  - **Alumni sign-in, because identity is the hardest part to change.** I checked the OSU Connections signup page [3] myself and confirmed it accepts any email, LinkedIn, or Google, and I read OSU's ONID policy.
+  - **The schema, because a bad migration is hard to undo once real data exists.** I reviewed the `profiles` migration and ran the backend tests locally, including the migration rollback test and `test_users_only_see_their_own_profile`. All passed.
 
 ## Decision
 
-Proposed. Because this decision involves authentication and personal data, our Team Charter requires unanimous team agreement, and it will be recorded in `docs/adr/`. The team will decide after peer review and after hearing back from Gravyty on storage and which profile fields the API can read, and from our partner on who administers OSU Connections and whether API access can be enabled.
+**Accepted on 2026-11-08: Option F.** The team agreed unanimously, as our charter requires for authentication and personal data, and I chaired the decision. BeaverLink uses its own accounts through Better Auth and profiles users enter themselves, and the Graduway API is not used for now. Follow-up work: merge the auth, profile API, and sign-up branches, link BeaverLink from Eventbrite registration, and update `docs/design.md`, `docs/requirements.md`, and `docs/risks.md` to match.
+
+## References
+
+1. Gravyty. *Graduway Open API documentation.* https://apidoc.graduway.com/
+2. Oregon State University. *ONID: Account Eligibility and Duration.* https://oregonstate.teamdynamix.com/TDClient/KB/ArticleDet?ID=51559
+3. OSU Connections. *Registration page.* https://osuconnections.org/account/registration
+4. Nikki (Gravyty). Email replies to the BeaverLink team, thread "Re: OSU Connections," October 22 and October 29, 2026 (not public).
+5. Better Auth. *Documentation.* https://www.better-auth.com/docs
+6. PyPI. *psycopg* (license: LGPL-3.0). https://pypi.org/project/psycopg/
+7. npm. *nodemailer* (license: MIT-0). https://www.npmjs.com/package/nodemailer
+8. BeaverLink repository. https://github.com/beaverlink/beaverlink (PR #24; branches `feat/profile-api`, `feat/auth-polish`, `feat/login-signup`; `docs/requirements.md`, `docs/risks.md`, `.github/workflows/ci.yml`)
+9. BeaverLink team. Partner meeting notes, Meeting 2, October 2026 (team Google Drive, not public).
+10. Karla Rockhold (OSU Alumni Association). Partner meeting discussion on who attends events, including day-of registrations and guests of alumni, fall 2026 (not public).
