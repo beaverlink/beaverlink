@@ -6,7 +6,7 @@
 | Date | 2026-10-25 (final draft 2026-11-22) |
 | Status | Accepted |
 | Decision Date | 2026-11-18 |
-| Deciders | BeaverLink team |
+| Deciders | Benjamin Smithynunta (author), Brady Hanna (implemented it in PRs #21, #42, #43, #45) |
 | Superseded By | (N/A) |
 
 ## Problem and Context
@@ -104,7 +104,7 @@ I recommend Option C, Supabase as hosted Postgres with Better Auth for login and
 
 - **What checks made that reasonable.** This is research and writing, so the checks are mostly human. Every factual claim links to its source, the RFC got two peer reviews, a design review, and instructor comments, and the team's implementation goes through review. CI runs on every PR to `dev` and `main`: `ruff` and `pytest` against Postgres for the backend, and `tsc`, lint, tests, and build for the frontend. PR #45 adds an auth integration test job against Postgres. CONTRIBUTING.md bans direct pushes to `dev` and `main`, needs one approval and passing CI to merge, and asks each PR to say the author tested agent-written code. Branch protection was tested in PR #2. Checks 1, 2, 3, 5, and 6 above do not exist yet.
 
-- **Where I stopped and validated the result myself.** Because this decision is hard to reverse, I opened each cited page and confirmed the figures (500 MB, one-week pause, $25 Pro, bcrypt hashes, the `auth.uid()` rewrite, Better Auth's four tables and MIT license, the Data API guidance). I checked that Brady's implementation in PR #42 uses the JWT plugin and a separate `better_auth` schema, because the reversal argument depends on accounts living in our own tables. I chose the recommendation myself, based on what I can defend without the tool.
+- **Where I stopped and validated the result myself.** For the draft, I opened each cited page and confirmed the figures (500 MB, one-week pause, $25 Pro, bcrypt hashes, the `auth.uid()` rewrite, Better Auth's four tables and MIT license), because the cost and reversal arguments rest on them. For the final draft, Claude Code fetched the new Supabase and Vercel pages; I re-opened the Supabase hardening guide to confirm the Data API sentence, because turning the Data API off is now a security condition on the recommendation and a wrong reading would leave the `session` table exposed. I read `auth/src/auth.ts` in PR #42 to confirm it uses the JWT plugin and a separate `better_auth` schema, because the whole reversal argument depends on accounts living in our own tables. I chose the recommendation myself, based on what I can defend without the tool.
 
 ## Decision
 
