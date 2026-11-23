@@ -118,7 +118,7 @@ Accepted. The team acted on Option C: Supabase was set up as hosted Postgres in 
 4. Better Auth. Generic OAuth plugin. https://www.better-auth.com/docs/plugins/generic-oauth
 5. Better Auth. Source repository and license. https://github.com/better-auth/better-auth
 6. Supabase. Row Level Security. https://supabase.com/docs/guides/database/postgres/row-level-security
-7. Supabase. Hardening the Data API. https://supabase.com/docs/guides/database/hardening-data-api
+7. Supabase. Securing your API (Data API hardening). https://supabase.com/docs/guides/database/hardening-data-api
 8. Supabase. Pricing. https://supabase.com/pricing
 9. WorkOS. Migrate from Supabase. https://workos.com/docs/migrate/supabase
 10. Neon. Complete Supabase migration guide. https://neon.com/guides/complete-supabase-migration
