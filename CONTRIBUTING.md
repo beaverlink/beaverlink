@@ -5,7 +5,7 @@
 Follow the README.md quickstart first. Beyond it:
 
 - The backend virtual environment lives in `backend/.venv` (gitignored).
-- No environment variables or local services are needed yet. When they are, list them here and add a `.env.example`; never commit `.env`.
+- The backend needs `DATABASE_URL` for its database tests and the profile API (see `backend/.env.example` and the README's Local database section). List any new variables here and in a `.env.example`; never commit `.env`.
 - Use fake seed data only. Profiles are real people's personal data.
 
 ## Local checks
