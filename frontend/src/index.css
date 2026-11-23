@@ -7,6 +7,8 @@
   --color-osu-tint: #fbeae3;
   --color-ink: #1c1917;
   --color-paper: #faf8f5;
+  --color-bark: #8a5a34;
+  --color-bark-tint: #f4ebe1;
 }
 
 @layer base {
