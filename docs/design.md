@@ -30,7 +30,7 @@ flowchart LR
   U[Browser] --> FE[React frontend<br/>demo UI, mock data]
   FE --> API[FastAPI backend<br/>scaffold exists]
   API --> DB[(PostgreSQL + pgvector<br/>planned)]
-  FE -.sign-in.-> AUTH[Auth service<br/>undecided]
+  FE -.sign-in.-> AUTH[Better Auth service<br/>in review, PRs #42, #43, #45]
 ```
 
 ## Interfaces and Contracts
@@ -47,20 +47,21 @@ None yet. Planned tables: users, profiles, events, surveys, matches. If embeddin
 
 ## Deployment
 
-**Production target.** The walking skeleton (sign in, fill a profile, see one ranked match list) will run as a hosted web app serving requests at a public URL by fall week 10. It runs on free cloud plans, with managed PostgreSQL (Supabase is proposed in an open RFC), so it does not wait on OSU hosting. The partner, the OSU Alumni Association, agreed to free cloud hosting when the whole team asked at the in-person meeting on 2026-10-16. The accounts are registered to an email the partner provides, so the partner owns them and the team has access during the project. That email has not been requested yet (see `docs/risks.md`). The specific host is not picked yet; the free plans under consideration are Vercel and Cloudflare. Owner: Benjamin Smithynunta, by 2026-11-08.
+**Production target.** The walking skeleton (sign in, fill a profile, see one ranked match list) will run as a hosted web app serving requests at a public URL by fall week 10. It runs on free cloud plans, on Vercel (picked in #10 on 2026-11-15) with Supabase as hosted PostgreSQL only (RFC accepted 2026-11-18), so it does not wait on OSU hosting. The partner, the OSU Alumni Association, agreed to free cloud hosting when the whole team asked at the in-person meeting on 2026-10-16. The accounts are registered to an email the partner provides, so the partner owns them and the team has access during the project. We asked for that email on 2026-11-06; the OSU Foundation is reviewing the request, so production waits on it (risk R1, #9). Owner: Benjamin Smithynunta.
+
+**Supabase Data API.** Nothing calls Supabase's REST or GraphQL endpoints, so the Data API must be off before real data goes in. If the `better_auth` schema were exposed through it, `jwks` would leak the token signing key (anyone could forge tokens FastAPI accepts) and `account` would leak password hashes. `supabase/config.toml` still has `[api] enabled = true` for local development.
 
 **Today.** The backend runs only locally (see README.md). Staging and rollback are planned in `docs/risks.md`.
 
 ## Decisions Deferred on Purpose
 
-Each has a proposed RFC, either in `docs/rfcs/` or in an open pull request:
+Database host and login library are decided: Supabase as hosted Postgres with Better Auth (accepted, `docs/rfcs/2026-10-25-supabase-benjamin-s.md`). The rest each have a proposed RFC, either in `docs/rfcs/` or in an open pull request:
 
-- Database host and login library (Supabase Postgres with Better Auth, proposed).
 - Profile data source and sign-in method (hybrid with swappable sources, proposed).
 - Whether v1 matching uses stored embeddings (local model, separate table, off by default, proposed).
 
 ## Open Technical Questions
 
-- Can Vercel or Cloudflare's free plan run FastAPI, and a Node auth service next to it if Better Auth is chosen?
+- Can Vercel's free plan run the Node auth service next to FastAPI? Untested until the RFC's spike (by 2026-12-06).
 - Which OAuth providers can alumni use (Google, LinkedIn, OSU)?
 - Does the CI Postgres image need extra extensions once migrations exist?
